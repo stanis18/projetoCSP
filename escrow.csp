@@ -1,85 +1,100 @@
---0x29359c2757e6b59abc9c47cb5f92cfbbe8b66469
-
-nametype uint8 = {0..8}
-nametype uint32 = {0..32}
-nametype uint256 = {0..256}
-
+--------------------------------Constants--------------------------------
 datatype Status = FUNDED | RELEASED
 datatype TransactionType = ETHER | TOKEN
 
-datatype address = zeroX.uint256 -- Corrigir com regex..
-datatype bytes32 = byte1 | byte2 | byte3 | byte4 -- Corrigir com regex..
-datatype mapping = map1 | map2 | map3 | map4 -- Corrigir com uma definição do mapa..
+datatype address = zeroX.{uint256}
+datatype bytes32 = b32.{uint256}
+datatype bytes20 = b20.{uint256}
+
+datatype numbersType = uint | uint8 | uint32 | uint256 
 
 Transaction = {(value, lastModified, status, transactionType, threshold, timeoutHours, 
-buyer, seller, tokenAddress, moderator, released, noOfReleases, isOwner, voted, beneficiaries) | --param do proc.
-value <- uint256, lastModified <- uint256, status <- Status, 
-transactionType <- TransactionType, threshold <- uint8, timeoutHours <- uint32,
+buyer, seller, tokenAddress, moderator, released, noOfReleases) | 
+value <- {uint256}, lastModified <- {uint256}, status <- Status, 
+transactionType <- TransactionType, threshold <- {uint8}, timeoutHours <- {uint32},
 buyer <- address, seller <- address, tokenAddress <- address, moderator <- address,
-released <- uint256, noOfReleases <- uint256, 
-isOwner <- mapping, voted <- mapping, beneficiaries <- mapping} -- definir o tipo do map
-
-transactions = (| bytes32 => Transaction |)
-
-transactionCount = uint256
-
-partyVsTransaction = (| address => <>|)
-
--------------------------------------------Modifiers-------------------------------------------
-transactionExists(scriptHash) =  if getValue(mapLookup(transactions, scriptHash)) != 0 then true
-                                 else false -- "Transaction does not exist"
-                                 
-transactionDoesNotExist(scriptHash) = if getValue(mapLookup(transactions, scriptHash)) == 0 then true
-                                      else false -- "Transaction exists"
-    
-inFundedState(scriptHash) = if getStatus(mapLookup(transactions, scriptHash)) == FUNDED then true
-                             else false --"Transaction is not in FUNDED state"
-
-fundsExist(scriptHash) = if sub (getValue(mapLookup(transactions, scriptHash)), getReleased(mapLookup(transactions, scriptHash)))  > 0 then true
-                                 else false --"All funds has been released"
-
-nonZeroAddress(addressToCheck) = if addressToCheck != 0 then true 
-                                 else false -- "Zero address passed"
-
-checkTransactionType(scriptHash, transactionType) = if getTransactionType(mapLookup(transactions, scriptHash)) == transactionType then true
-                                                                              else false  --"Transaction type does not match"
-           
-
-onlyBuyer(msgSender, scriptHash) = if getTransactionType(mapLookup(transactions, scriptHash)) == msgSender then true
-                                 else false -- "The initiator of the transaction is not buyer"
-            
-
--------------------------------------------Gets-------------------------------------------
-getValue({(value, lastModified, status, transactionType, threshold, timeoutHours, buyer, seller, tokenAddress, moderator, released, noOfReleases, isOwner, voted, beneficiaries)}) = value
-
-getStatus({(value, lastModified, status, transactionType, threshold, timeoutHours, buyer, seller, tokenAddress, moderator, released, noOfReleases, isOwner, voted, beneficiaries)}) = status
-
-getReleased({(value, lastModified, status, transactionType, threshold, timeoutHours, buyer, seller, tokenAddress, moderator, released, noOfReleases, isOwner, voted, beneficiaries)}) = released
-
-getTransactionType({(value, lastModified, status, transactionType, threshold, timeoutHours, buyer, seller, tokenAddress, moderator, released, noOfReleases, isOwner, voted, beneficiaries)}) = transactionType
-
-getBuyer({(value, lastModified, status, transactionType, threshold, timeoutHours, buyer, seller, tokenAddress, moderator, released, noOfReleases, isOwner, voted, beneficiaries)}) = buyer
-
--------------------------------------------Utils-------------------------------------------
-
-sub(arg1, arg2) = arg1 - arg2
+released <- {uint256}, noOfReleases <- {uint256}} 
 
 
--------------------------------------------_addTransaction--------------------------------------------
+--------------------------------Channels--------------------------------
+channel createTransaction, addTransaction_ : Transaction
 
-channel buyerSellerSame, valueGreaterThanZero, thresHoldGreatherThanZero, thresHoldLessThanThree, eitherThresholdORValidModerator, hashDoesNotMatch, buyerORSellerIsModerator
-channel clearTransaction, throwError
+channel newTransaction : bytes32.Transaction
+--------------------------------OpenBazaar--------------------------------
 
+--OpenBazaar =  addTransaction!trans -> OpenBazaar
 
-ContractEscrow = ContractEscrow
-
-addTransaction(buyer, seller, moderator, threshold, timeoutHours, scriptHash, value, uniqueId, transactionType, tokenAddress) =   buyerSellerSame -> clearStack() 
-                                                                                                                                [] valueGreaterThanZero -> clearStack()
-                                                                                                                                [] thresHoldGreatherThanZero -> clearStack()
-                                                                                                                                [] thresHoldLessThanThree -> clearStack()
-                                                                                                                                [] eitherThresholdORValidModerator -> clearStack()
-                                                                                                                                [] hashDoesNotMatch -> clearStack()
-                                                                                                                                [] buyerORSellerIsModerator -> clearStack()
+--------------------------------Contract--------------------------------
+channel addTransaction, addTokenTransaction, checkBeneficiary, checkVote
+channel addFundsToTransaction, addTokensToTransaction, getAllTransactionsForParty
+channel execute, getTransactionHash, calculateRedeemScriptHash
 
 
-clearStack() = clearTransaction -> throwError -> ContractEscrow                                                                                                         
+--Escrow = newTransaction?transaction -> addTransaction!transaction -> Escrow
+
+Escrow =   addTransaction -> functionAddTransaction(getParamAddTransaction())
+        [] addTokenTransaction -> Escrow
+        [] checkBeneficiary -> Escrow 
+        [] checkBeneficiary -> Escrow 
+        [] checkVote -> Escrow
+        [] addFundsToTransaction -> Escrow
+        [] addTokensToTransaction -> Escrow
+        [] getAllTransactionsForParty -> Escrow
+        [] execute -> Escrow
+        [] getTransactionHash -> Escrow
+        [] calculateRedeemScriptHash -> Escrow
+
+
+
+--Método adicionar Transações--
+
+
+functionAddTransaction(parameters) =  createTransaction?transaction -> addTransaction_!transaction -> Escrow
+
+
+--Para lidar com os parametros da transação
+getParamAddTransaction() = {(buyer, seller, moderator, threshold, timeoutHours, scriptHash, value,
+uniqueId, transactionType, tokenAddress) | 
+buyer <- address, seller <- address, moderator <- address, threshold <- {uint8},
+timeoutHours <- {uint32}, scriptHash <- bytes32, value <- {uint256}, uniqueId <- bytes20,
+transactionType <- TransactionType, tokenAddress <- address} 
+
+getValue((buyer, seller, moderator, threshold, timeoutHours, scriptHash, value, uniqueId, transactionType, tokenAddress)) = value
+getBuyer((buyer, seller, moderator, threshold, timeoutHours, scriptHash, value, uniqueId, transactionType, tokenAddress)) = buyer
+getTransactionType((buyer, seller, moderator, threshold, timeoutHours, scriptHash, value, uniqueId, transactionType, tokenAddress)) = transactionType
+
+--Janelas
+WEscrow = {|addTransaction, addTokenTransaction, checkBeneficiary, checkVote, 
+addFundsToTransaction, addTokensToTransaction, getAllTransactionsForParty, 
+execute, getTransactionHash, calculateRedeemScriptHash,
+createTransaction, addTransaction_|}
+
+
+--------------------------------Blockchain--------------------------------
+InitBlockchain = Blockchain((| |))
+
+Blockchain(mapTransactions) =  addTransaction_?transaction -> Blockchain(mapTransactions)
+
+WBlockchain = {|addTransaction_|}
+
+
+updateBlockchainAddTransaction(value, map) = mapFromList(mapToList(map) ^ <value>) --Converte o mapa para lista adiciona o valor e após isso para mapa novamente
+--------------------------------Utils--------------------------------
+
+
+
+
+--------------------------------Asserts & Paralelism--------------------------------
+
+EscrowAndBlockchain = Escrow [ WEscrow || WBlockchain ] InitBlockchain
+
+assert InitBlockchain :[deadlock free]
+assert InitBlockchain :[deterministic]
+
+assert Escrow :[deadlock free]
+assert Escrow :[deterministic]
+
+
+assert EscrowAndBlockchain :[deadlock free]
+assert EscrowAndBlockchain :[deterministic]
+
