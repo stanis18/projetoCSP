@@ -15,11 +15,16 @@ transactionType <- TransactionType, threshold <- {uint8}, timeoutHours <- {uint3
 buyer <- address, seller <- address, tokenAddress <- address, moderator <- address,
 released <- {uint256}, noOfReleases <- {uint256}} 
 
-
+ParametersAddTransaction = {(buyer, seller, moderator, threshold, timeoutHours, scriptHash, value,
+uniqueId, transactionType, tokenAddress) | 
+buyer <- address, seller <- address, moderator <- address, threshold <- {uint8},
+timeoutHours <- {uint32}, scriptHash <- bytes32, value <- {uint256}, uniqueId <- bytes20,
+transactionType <- TransactionType, tokenAddress <- address} 
 --------------------------------Channels--------------------------------
-channel createTransaction, addTransaction_ : Transaction
+channel createTransaction: Transaction
 
-channel newTransaction : bytes32.Transaction
+channel newTransaction, syncAddTransaction : bytes32.Transaction
+
 --------------------------------OpenBazaar--------------------------------
 
 --OpenBazaar =  addTransaction!trans -> OpenBazaar
@@ -29,10 +34,10 @@ channel addTransaction, addTokenTransaction, checkBeneficiary, checkVote
 channel addFundsToTransaction, addTokensToTransaction, getAllTransactionsForParty
 channel execute, getTransactionHash, calculateRedeemScriptHash
 
+channel getParamAddTransaction : ParametersAddTransaction
 
---Escrow = newTransaction?transaction -> addTransaction!transaction -> Escrow
 
-Escrow =   addTransaction -> functionAddTransaction(getParamAddTransaction())
+Escrow =   addTransaction -> getParamAddTransaction?parameters -> addTransaction_(parameters)
         [] addTokenTransaction -> Escrow
         [] checkBeneficiary -> Escrow 
         [] checkBeneficiary -> Escrow 
@@ -49,33 +54,26 @@ Escrow =   addTransaction -> functionAddTransaction(getParamAddTransaction())
 --Método adicionar Transações--
 
 
-functionAddTransaction(parameters) =  createTransaction?transaction -> addTransaction_!transaction -> Escrow
-
-
---Para lidar com os parametros da transação
-getParamAddTransaction() = {(buyer, seller, moderator, threshold, timeoutHours, scriptHash, value,
-uniqueId, transactionType, tokenAddress) | 
-buyer <- address, seller <- address, moderator <- address, threshold <- {uint8},
-timeoutHours <- {uint32}, scriptHash <- bytes32, value <- {uint256}, uniqueId <- bytes20,
-transactionType <- TransactionType, tokenAddress <- address} 
+addTransaction_(parameters) =  createTransaction?transaction ->  syncAddTransaction!getScriptHash(parameters)!transaction -> Escrow
 
 getValue((buyer, seller, moderator, threshold, timeoutHours, scriptHash, value, uniqueId, transactionType, tokenAddress)) = value
 getBuyer((buyer, seller, moderator, threshold, timeoutHours, scriptHash, value, uniqueId, transactionType, tokenAddress)) = buyer
 getTransactionType((buyer, seller, moderator, threshold, timeoutHours, scriptHash, value, uniqueId, transactionType, tokenAddress)) = transactionType
+getScriptHash((buyer, seller, moderator, threshold, timeoutHours, scriptHash, value, uniqueId, transactionType, tokenAddress)) = scriptHash
 
---Janelas
+--Windows
 WEscrow = {|addTransaction, addTokenTransaction, checkBeneficiary, checkVote, 
 addFundsToTransaction, addTokensToTransaction, getAllTransactionsForParty, 
 execute, getTransactionHash, calculateRedeemScriptHash,
-createTransaction, addTransaction_|}
+createTransaction, syncAddTransaction, getParamAddTransaction|}
 
 
 --------------------------------Blockchain--------------------------------
 InitBlockchain = Blockchain((| |))
 
-Blockchain(mapTransactions) =  addTransaction_?transaction -> Blockchain(mapTransactions)
+Blockchain(mapTransactions) =  syncAddTransaction?keyBytes32?transaction -> Blockchain(updateBlockchainAddTransaction((keyBytes32, transaction), mapTransactions))
 
-WBlockchain = {|addTransaction_|}
+WBlockchain = {|syncAddTransaction|}
 
 
 updateBlockchainAddTransaction(value, map) = mapFromList(mapToList(map) ^ <value>) --Converte o mapa para lista adiciona o valor e após isso para mapa novamente
