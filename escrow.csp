@@ -2,7 +2,7 @@
 datatype Status = FUNDED | RELEASED
 datatype TransactionType = ETHER | TOKEN
 
-datatype address = zeroX.{uint256}
+datatype address = zeroAddress | zeroX.{uint256} -- ???Como representar melhor strings???
 datatype bytes32 = b32.{uint256}
 datatype bytes20 = b20.{uint256}
 
@@ -20,6 +20,10 @@ uniqueId, transactionType, tokenAddress) |
 buyer <- address, seller <- address, moderator <- address, threshold <- {uint8},
 timeoutHours <- {uint32}, scriptHash <- bytes32, value <- {uint256}, uniqueId <- bytes20,
 transactionType <- TransactionType, tokenAddress <- address} 
+
+ParametersCalculateRedeemScriptHash = {(buyer, seller, moderator, threshold, timeoutHours, uniqueId, tokenAddress) | 
+buyer <- address, seller <- address, moderator <- address, threshold <- {uint8},
+timeoutHours <- {uint32}, uniqueId <- bytes20, tokenAddress <- address} 
 --------------------------------Channels--------------------------------
 channel createTransaction: Transaction
 
@@ -30,14 +34,16 @@ channel newTransaction, syncAddTransaction : bytes32.Transaction
 --OpenBazaar =  addTransaction!trans -> OpenBazaar
 
 --------------------------------Contract--------------------------------
-channel addTransaction, addTokenTransaction, checkBeneficiary, checkVote
+channel addTokenTransaction, checkBeneficiary, checkVote
 channel addFundsToTransaction, addTokensToTransaction, getAllTransactionsForParty
-channel execute, getTransactionHash, calculateRedeemScriptHash
+channel execute, getTransactionHash
 
-channel getParamAddTransaction : ParametersAddTransaction
+channel addTransaction : ParametersAddTransaction
+channel calculateRedeemScriptHash : ParametersCalculateRedeemScriptHash.bytes32
 
+channel errorUser
 
-Escrow =   addTransaction -> getParamAddTransaction?parameters -> addTransaction_(parameters)
+Escrow =   addTransaction?parameters -> addTransaction_(parameters)
         [] addTokenTransaction -> Escrow
         [] checkBeneficiary -> Escrow 
         [] checkBeneficiary -> Escrow 
@@ -47,25 +53,53 @@ Escrow =   addTransaction -> getParamAddTransaction?parameters -> addTransaction
         [] getAllTransactionsForParty -> Escrow
         [] execute -> Escrow
         [] getTransactionHash -> Escrow
-        [] calculateRedeemScriptHash -> Escrow
+        [] calculateRedeemScriptHash?parameters!getBytes(calculateRedeemScriptHash_(parameters)) -> Escrow
 
 
 
 --Método adicionar Transações--
 
 
-addTransaction_(parameters) =  createTransaction?transaction ->  syncAddTransaction!getScriptHash(parameters)!transaction -> Escrow
+addTransaction_(parameters) =  if getBuyer(parameters) !=  getSeller(parameters) then 
+                                  if getValue(parameters) > 0 then 
+                                    if getThreshold(parameters) > 0 then 
+                                        if getThreshold(parameters) <= 3 then 
+                                            if (getThreshold(parameters)  == 1 or getModerator(parameters) != zeroAddress ) then 
+                                                if(getScriptHash(parameters) == getBytes(calculateRedeemScriptHash_((getBuyer(parameters), getSeller(parameters), getModerator(parameters), getThreshold(parameters), getTimeoutHours(parameters), getUniqueId(parameters), getTokenAddress(parameters))))) then 
+                                                    createTransaction?transaction ->  syncAddTransaction!getScriptHash(parameters)!transaction -> Escrow
+                                                else require('f')
+                                            else require('e') --??? Como representar melhor os erros ???
+                                        else require('d')
+                                    else require('c')
+                                  else  require('b')
+                               else require('a')
 
-getValue((buyer, seller, moderator, threshold, timeoutHours, scriptHash, value, uniqueId, transactionType, tokenAddress)) = value
+require(mesage) = errorUser -> Escrow
+
+
+-- para retornar valores dos parametros
+getValue((buyer, seller, moderator, threshold, timeoutHours, scriptHash, value, uniqueId, transactionType, tokenAddress)) = 3 -- ???Como representar os numeros sem travar???
+getThreshold((buyer, seller, moderator, threshold, timeoutHours, scriptHash, value, uniqueId, transactionType, tokenAddress)) = 2
 getBuyer((buyer, seller, moderator, threshold, timeoutHours, scriptHash, value, uniqueId, transactionType, tokenAddress)) = buyer
+getSeller((buyer, seller, moderator, threshold, timeoutHours, scriptHash, value, uniqueId, transactionType, tokenAddress)) = seller
 getTransactionType((buyer, seller, moderator, threshold, timeoutHours, scriptHash, value, uniqueId, transactionType, tokenAddress)) = transactionType
 getScriptHash((buyer, seller, moderator, threshold, timeoutHours, scriptHash, value, uniqueId, transactionType, tokenAddress)) = scriptHash
+getModerator((buyer, seller, moderator, threshold, timeoutHours, scriptHash, value, uniqueId, transactionType, tokenAddress)) = moderator
+getUniqueId((buyer, seller, moderator, threshold, timeoutHours, scriptHash, value, uniqueId, transactionType, tokenAddress)) = uniqueId
+getTokenAddress((buyer, seller, moderator, threshold, timeoutHours, scriptHash, value, uniqueId, transactionType, tokenAddress)) = tokenAddress
+getTimeoutHours((buyer, seller, moderator, threshold, timeoutHours, scriptHash, value, uniqueId, transactionType, tokenAddress)) = timeoutHours
+
+
+-- Metodo para calcular o scriptHash
+calculateRedeemScriptHash_((buyer, seller, moderator, threshold, timeoutHours, uniqueId, tokenAddress)) = bytes32
+getBytes({bytes}) = bytes
+
 
 --Windows
 WEscrow = {|addTransaction, addTokenTransaction, checkBeneficiary, checkVote, 
 addFundsToTransaction, addTokensToTransaction, getAllTransactionsForParty, 
 execute, getTransactionHash, calculateRedeemScriptHash,
-createTransaction, syncAddTransaction, getParamAddTransaction|}
+createTransaction, syncAddTransaction, errorUser|}
 
 
 --------------------------------Blockchain--------------------------------
