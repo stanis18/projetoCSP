@@ -24,37 +24,40 @@ transactionType <- TransactionType, tokenAddress <- address}
 ParametersCalculateRedeemScriptHash = {(buyer, seller, moderator, threshold, timeoutHours, uniqueId, tokenAddress) | 
 buyer <- address, seller <- address, moderator <- address, threshold <- {uint8},
 timeoutHours <- {uint32}, uniqueId <- bytes20, tokenAddress <- address} 
---------------------------------Channels--------------------------------
-channel createTransaction: Transaction
 
-channel newTransaction, syncAddTransaction : bytes32.Transaction
+ParametersAddTokensToTransaction = {(scriptHash, value) | value <- {uint256}, scriptHash <- bytes32 } 
+
+--------------------------------Channels--------------------------------
+channel syncAddTransaction : bytes32.Transaction
+channel syncAddTokeToTransacion : bytes32.{uint256}
+channel syncgetTransaction
 
 --------------------------------OpenBazaar--------------------------------
 
---OpenBazaar =  addTransaction!trans -> OpenBazaar
+
 
 --------------------------------Contract--------------------------------
 channel addTokenTransaction, checkBeneficiary, checkVote
-channel addFundsToTransaction, addTokensToTransaction, getAllTransactionsForParty
+channel addFundsToTransaction, getAllTransactionsForParty
 channel execute, getTransactionHash
 
+channel createTransaction : Transaction
 channel addTransaction : ParametersAddTransaction
 channel calculateRedeemScriptHash : ParametersCalculateRedeemScriptHash.bytes32
+channel addTokensToTransaction : ParametersAddTokensToTransaction
 
 channel errorUser
 
 Escrow =   addTransaction?parameters -> addTransaction_(parameters)
         [] addTokenTransaction -> Escrow
         [] checkBeneficiary -> Escrow 
-        [] checkBeneficiary -> Escrow 
         [] checkVote -> Escrow
         [] addFundsToTransaction -> Escrow
-        [] addTokensToTransaction -> Escrow
+        [] addTokensToTransaction?parameters -> addTokensToTransaction_(parameters) 
         [] getAllTransactionsForParty -> Escrow
         [] execute -> Escrow
         [] getTransactionHash -> Escrow
         [] calculateRedeemScriptHash?parameters!getBytes(calculateRedeemScriptHash_(parameters)) -> Escrow
-
 
 
 --Método adicionar Transações--
@@ -67,14 +70,14 @@ addTransaction_(parameters) =  if getBuyer(parameters) !=  getSeller(parameters)
                                             if (getThreshold(parameters)  == 1 or getModerator(parameters) != zeroAddress ) then 
                                                 if(getScriptHash(parameters) == getBytes(calculateRedeemScriptHash_((getBuyer(parameters), getSeller(parameters), getModerator(parameters), getThreshold(parameters), getTimeoutHours(parameters), getUniqueId(parameters), getTokenAddress(parameters))))) then 
                                                     createTransaction?transaction ->  syncAddTransaction!getScriptHash(parameters)!transaction -> Escrow
-                                                else require('f')
-                                            else require('e') --??? Como representar melhor os erros ???
-                                        else require('d')
-                                    else require('c')
-                                  else  require('b')
-                               else require('a')
+                                                else throwError('f')
+                                            else throwError('e') --??? Como representar melhor os erros ???
+                                        else throwError('d')
+                                    else throwError('c')
+                                  else  throwError('b')
+                               else throwError('a')
 
-require(mesage) = errorUser -> Escrow
+throwError(mesage) = errorUser -> Escrow
 
 
 -- para retornar valores dos parametros
@@ -94,26 +97,35 @@ getTimeoutHours((buyer, seller, moderator, threshold, timeoutHours, scriptHash, 
 calculateRedeemScriptHash_((buyer, seller, moderator, threshold, timeoutHours, uniqueId, tokenAddress)) = bytes32
 getBytes({bytes}) = bytes
 
+--Metodo addTokenTransaction
+
+addTokensToTransaction_((scriptHash, value)) = syncAddTokeToTransacion!scriptHash!value -> Escrow
 
 --Windows
 WEscrow = {|addTransaction, addTokenTransaction, checkBeneficiary, checkVote, 
 addFundsToTransaction, addTokensToTransaction, getAllTransactionsForParty, 
 execute, getTransactionHash, calculateRedeemScriptHash,
-createTransaction, syncAddTransaction, errorUser|}
+createTransaction, syncAddTransaction, errorUser, syncAddTokeToTransacion,
+syncgetTransaction|}
 
 
 --------------------------------Blockchain--------------------------------
-InitBlockchain = Blockchain((| |))
+InitBlockchain = Blockchain((| |), (| |))
 
-Blockchain(mapTransactions) =  syncAddTransaction?keyBytes32?transaction -> Blockchain(updateBlockchainAddTransaction((keyBytes32, transaction), mapTransactions))
+Blockchain(transactions, partyVsTransaction) =  syncAddTransaction?keyBytes32?transaction -> Blockchain(updateBlockchainAddTransaction((keyBytes32, transaction), transactions), partyVsTransaction)
+                                            []  syncAddTokeToTransacion?scriptHash?value -> Blockchain(transactions, partyVsTransaction)
+                                            []  syncgetTransaction -> Blockchain(transactions, partyVsTransaction) --Retornar a transacao
 
-WBlockchain = {|syncAddTransaction|}
+WBlockchain = {|syncAddTransaction, syncAddTokeToTransacion, syncgetTransaction|}
 
 
 updateBlockchainAddTransaction(value, map) = mapFromList(mapToList(map) ^ <value>) --Converte o mapa para lista adiciona o valor e após isso para mapa novamente
+
+lookForTransaction(map, key) = mapLookup(map, key) -- ???Como tratar esses erros???
+
 --------------------------------Utils--------------------------------
-
-
+--SafeMath
+add(x, y) = numbersType
 
 
 --------------------------------Asserts & Paralelism--------------------------------
