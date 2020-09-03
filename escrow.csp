@@ -154,3 +154,15 @@ assert Escrow :[deterministic]
 assert EscrowAndBlockchain :[deadlock free]
 assert EscrowAndBlockchain :[deterministic]
 
+--------------------------------Apêndice--------------------------------
+
+-- expection1 -> "Buyer and seller are same"
+-- expection2 -> "Value passed is 0"
+-- expection3 -> "Threshold must be greater than 0"
+-- expection4 -> "Threshold must not be greater than 3"
+-- expection5 -> "Either threshold should be 1 or valid moderator address should be passed"
+-- expection6 -> "Calculated script hash does not match passed script hash."
+-- expection7 -> "Transaction does not exist"
+-- expection8 -> Transaction is not in FUNDED state
+-- expection9 -> Transaction type does not match
+-- expection10 -> "The initiator of the transaction is not buyer"
