@@ -24,7 +24,13 @@ ParametersAddTransaction = {(buyer, seller, moderator, threshold, timeoutHours, 
 uniqueId, transactionType, tokenAddress) | 
 buyer <- address, seller <- address, moderator <- address, threshold <- {uint8},
 timeoutHours <- {uint32}, scriptHash <- bytes32, value <- {uint256}, uniqueId <- bytes20,
-transactionType <- TransactionType, tokenAddress <- address} 
+transactionType <- {ETHER}, tokenAddress <- address} 
+
+ParametersAddTransactionToken = {(buyer, seller, moderator, threshold, timeoutHours, scriptHash, value,
+uniqueId, transactionType, tokenAddress) | 
+buyer <- address, seller <- address, moderator <- address, threshold <- {uint8},
+timeoutHours <- {uint32}, scriptHash <- bytes32, value <- {uint256}, uniqueId <- bytes20,
+transactionType <- {TOKEN}, tokenAddress <- address} 
 
 ParametersCalculateRedeemScriptHash = {(buyer, seller, moderator, threshold, timeoutHours, uniqueId, tokenAddress) | 
 buyer <- address, seller <- address, moderator <- address, threshold <- {uint8},
@@ -46,12 +52,13 @@ channel syncGetTransaction : Transaction
 
 
 --------------------------------Contract--------------------------------
-channel addTokenTransaction, checkBeneficiary, checkVote
+channel checkBeneficiary, checkVote
 channel addFundsToTransaction, getAllTransactionsForParty
 channel execute
 
 channel createTransaction : Transaction
 channel addTransaction : ParametersAddTransaction
+channel addTokenTransaction : ParametersAddTransactionToken
 channel calculateRedeemScriptHash : ParametersCalculateRedeemScriptHash.bytes32
 channel addTokensToTransaction : ParametersAddTokensToTransaction
 channel getTransactionHash : ParametersGetTransactionHash.bytes32
@@ -59,7 +66,7 @@ channel getTransactionHash : ParametersGetTransactionHash.bytes32
 channel returnError : expection
 
 Escrow =   addTransaction?parameters -> addTransaction_(parameters)
-        [] addTokenTransaction -> addTokenTransaction_()
+        [] addTokenTransaction?parameters -> addTransaction_(parameters)
         [] checkBeneficiary -> checkBeneficiary_()
         [] checkVote -> checkVote_()
         [] addFundsToTransaction -> addFundsToTransaction_()
@@ -136,9 +143,6 @@ addTokensToTransaction_((scriptHash, value, msgSender)) = syncGetTransactionID!s
 getTransactionHash_((scriptHash, destinations, amounts)) = bytes32
 
 
-
-addTokenTransaction_() = Escrow
-
 checkBeneficiary_() = Escrow
 
 checkVote_() = Escrow
@@ -174,7 +178,7 @@ WBlockchain = {|syncAddTransaction, syncAddTokenToTransacion, syncGetTransaction
 
 updateBlockchainAddTransaction(value, map) = mapFromList(mapToList(map) ^ <value>) --Converte o mapa para lista adiciona o valor e após isso para mapa novamente
 
-lookForTransaction(map, key) = mapLookup(map, key) -- ???Como tratar esses erros???
+lookForTransaction(map, key) = mapLookup(map, key) 
 
 --------------------------------Utils--------------------------------
 --SafeMath
