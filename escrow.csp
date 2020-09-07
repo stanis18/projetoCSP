@@ -42,7 +42,7 @@ ParametersGetTransactionHash = {(scriptHash, destinations, amounts) | scriptHash
 
 --------------------------------Channels--------------------------------
 channel syncAddTransaction : bytes32.Transaction
-channel syncAddTokenToTransacion : bytes32.{uint256}
+channel syncAddFundsOrTokensToTransaction : bytes32.{uint256}
 
 channel syncGetTransactionID : bytes32
 channel syncGetTransaction : Transaction
@@ -53,14 +53,14 @@ channel syncGetTransaction : Transaction
 
 --------------------------------Contract--------------------------------
 channel checkBeneficiary, checkVote
-channel addFundsToTransaction, getAllTransactionsForParty
+channel getAllTransactionsForParty
 channel execute
 
 channel createTransaction : Transaction
 channel addTransaction : ParametersAddTransaction
 channel addTokenTransaction : ParametersAddTransactionToken
 channel calculateRedeemScriptHash : ParametersCalculateRedeemScriptHash.bytes32
-channel addTokensToTransaction : ParametersAddTokensToTransaction
+channel addTokensToTransaction, addFundsToTransaction : ParametersAddTokensToTransaction
 channel getTransactionHash : ParametersGetTransactionHash.bytes32
 
 channel returnError : expection
@@ -69,7 +69,7 @@ Escrow =   addTransaction?parameters -> addTransaction_(parameters)
         [] addTokenTransaction?parameters -> addTransaction_(parameters)
         [] checkBeneficiary -> checkBeneficiary_()
         [] checkVote -> checkVote_()
-        [] addFundsToTransaction -> addFundsToTransaction_()
+        [] addFundsToTransaction?parameters -> addFundsToTransaction_(parameters)
         [] addTokensToTransaction?parameters -> addTokensToTransaction_(parameters) 
         [] getAllTransactionsForParty -> getAllTransactionsForParty_()
         [] execute -> execute_()
@@ -136,6 +136,21 @@ addTokensToTransaction_((scriptHash, value, msgSender)) = syncGetTransactionID!s
 
                                                                                                                             
 
+addFundsToTransaction_((scriptHash, value, msgSender)) = syncGetTransactionID!scriptHash -> ( syncGetTransaction?transaction -> (if getStateTransaction(transaction) == FUNDED then 
+                                                                                                                                if getTypeTransaction(transaction) == ETHER then 
+                                                                                                                                    if getBuyerTransaction(transaction) == msgSender then 
+                                                                                                                                        if value > 0 then
+                                                                                                                                            createNewITokenContract -> fundAddedEvent!value!scriptHash!msgSender -> Escrow
+                                                                                                                                        else throwError(expection11)
+                                                                                                                                    else throwError(expection10)
+                                                                                                                                else throwError(expection9)
+                                                                                                                            else throwError(expection8))
+                                                                                             [] transactionDoesNotExists -> throwError(expection7) )
+
+
+
+
+
 
 
 
@@ -147,7 +162,7 @@ checkBeneficiary_() = Escrow
 
 checkVote_() = Escrow
 
-addFundsToTransaction_() = Escrow
+
 
 getAllTransactionsForParty_() = Escrow
 
@@ -157,8 +172,8 @@ execute_() = Escrow
 --Windows
 WEscrow = {|addTransaction, addTokenTransaction, checkBeneficiary, checkVote, 
 addFundsToTransaction, addTokensToTransaction, getAllTransactionsForParty, 
-execute, getTransactionHash, calculateRedeemScriptHash,
-createTransaction, syncAddTransaction, returnError, syncAddTokenToTransacion,
+execute, getTransactionHash, calculateRedeemScriptHash, syncAddFundsOrTokensToTransaction,
+createTransaction, syncAddTransaction, returnError,
 syncGetTransaction, syncGetTransactionID, transactionDoesNotExists, createNewITokenContract,
 fundAddedEvent|}
 
@@ -168,15 +183,19 @@ channel transactionDoesNotExists
 
 InitBlockchain = Blockchain((| |), (| |))
 
-Blockchain(transactions, partyVsTransaction) =  syncAddTransaction?keyBytes32?transaction -> Blockchain(updateBlockchainAddTransaction((keyBytes32, transaction), transactions), partyVsTransaction)
-                                            []  syncAddTokenToTransacion?scriptHash?value -> Blockchain(transactions, partyVsTransaction)
+Blockchain(transactions, partyVsTransaction) =  syncAddTransaction?keyBytes32?transaction -> Blockchain(updateBlockchainAddTransaction((keyBytes32, transaction), transactions), partyVsTransaction)              
                                             []  syncGetTransactionID?scriptHash -> if mapMember(transactions, scriptHash) then syncGetTransaction!lookForTransaction(transactions, scriptHash) -> Blockchain(transactions, partyVsTransaction) --Retornar a transacao
                                                                                    else transactionDoesNotExists -> Blockchain(transactions, partyVsTransaction)  
+                                            []  syncAddFundsOrTokensToTransaction?scriptHash?value -> Blockchain(transactions, partyVsTransaction)
+                                            
 
-WBlockchain = {|syncAddTransaction, syncAddTokenToTransacion, syncGetTransaction, syncGetTransactionID, transactionDoesNotExists|}
+WBlockchain = {|syncAddTransaction, syncAddFundsOrTokensToTransaction, syncGetTransaction, syncGetTransactionID, 
+transactionDoesNotExists|}
 
 
 updateBlockchainAddTransaction(value, map) = mapFromList(mapToList(map) ^ <value>) --Converte o mapa para lista adiciona o valor e após isso para mapa novamente
+
+updateBlockchainUpdateTransaction(scriptHash, transaction, map) = mapUpdate(map, scriptHash, transaction)
 
 lookForTransaction(map, key) = mapLookup(map, key) 
 
