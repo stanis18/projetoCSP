@@ -42,13 +42,10 @@ ParametersGetTransactionHash = {(scriptHash, destinations, amounts) | scriptHash
 
 --------------------------------Channels--------------------------------
 channel syncAddTransaction : bytes32.Transaction
-channel syncAddFundsOrTokensToTransaction : bytes32.{uint256}
+channel syncAddFundsOrTokensToTransaction : bytes32.Transaction
 
 channel syncGetTransactionID : bytes32
 channel syncGetTransaction : Transaction
-
---------------------------------OpenBazaar--------------------------------
-
 
 
 --------------------------------Contract--------------------------------
@@ -79,16 +76,15 @@ Escrow =   addTransaction?parameters -> addTransaction_(parameters)
 
 --Método adicionar Transações--
 
-
 addTransaction_(parameters) =  if getBuyer(parameters) !=  getSeller(parameters) then 
                                   if getValue(parameters) > 0 then 
                                     if getThreshold(parameters) > 0 then 
                                         if getThreshold(parameters) <= 3 then 
                                             if (getThreshold(parameters)  == 1 or getModerator(parameters) != zeroAddress ) then 
                                                 if(getScriptHash(parameters) == getBytes(calculateRedeemScriptHash_((getBuyer(parameters), getSeller(parameters), getModerator(parameters), getThreshold(parameters), getTimeoutHours(parameters), getUniqueId(parameters), getTokenAddress(parameters))))) then 
-                                                    createTransaction?transaction ->  syncAddTransaction!getScriptHash(parameters)!transaction -> Escrow
+                                                    createTransaction?transaction -> syncAddTransaction!getScriptHash(parameters)!transaction -> Escrow
                                                 else throwError(expection6)
-                                            else throwError(expection5) --??? Como representar melhor os erros ???
+                                            else throwError(expection5) 
                                         else throwError(expection4)
                                     else throwError(expection3)
                                   else  throwError(expection2)
@@ -120,13 +116,13 @@ calculateRedeemScriptHash_((buyer, seller, moderator, threshold, timeoutHours, u
 
 
 --Metodo addTokenTransaction
-channel createNewITokenContract
+channel createNewITokenContract, teste
 channel fundAddedEvent :  {0..2}.bytes32.address
 addTokensToTransaction_((scriptHash, value, msgSender)) = syncGetTransactionID!scriptHash -> ( syncGetTransaction?transaction -> (if getStateTransaction(transaction) == FUNDED then 
                                                                                                                                 if getTypeTransaction(transaction) == TOKEN then 
                                                                                                                                     if getBuyerTransaction(transaction) == msgSender then 
                                                                                                                                         if value > 0 then
-                                                                                                                                            createNewITokenContract -> fundAddedEvent!value!scriptHash!msgSender -> Escrow
+                                                                                                                                             syncAddFundsOrTokensToTransaction!scriptHash!transaction -> fundAddedEvent!value!scriptHash!msgSender -> Escrow
                                                                                                                                         else throwError(expection11)
                                                                                                                                     else throwError(expection10)
                                                                                                                                 else throwError(expection9)
@@ -140,7 +136,7 @@ addFundsToTransaction_((scriptHash, value, msgSender)) = syncGetTransactionID!sc
                                                                                                                                 if getTypeTransaction(transaction) == ETHER then 
                                                                                                                                     if getBuyerTransaction(transaction) == msgSender then 
                                                                                                                                         if value > 0 then
-                                                                                                                                            createNewITokenContract -> fundAddedEvent!value!scriptHash!msgSender -> Escrow
+                                                                                                                                            createNewITokenContract -> syncAddFundsOrTokensToTransaction!scriptHash!transaction -> fundAddedEvent!value!scriptHash!msgSender -> Escrow
                                                                                                                                         else throwError(expection11)
                                                                                                                                     else throwError(expection10)
                                                                                                                                 else throwError(expection9)
@@ -173,7 +169,7 @@ execute_() = Escrow
 WEscrow = {|addTransaction, addTokenTransaction, checkBeneficiary, checkVote, 
 addFundsToTransaction, addTokensToTransaction, getAllTransactionsForParty, 
 execute, getTransactionHash, calculateRedeemScriptHash, syncAddFundsOrTokensToTransaction,
-createTransaction, syncAddTransaction, returnError,
+createTransaction, syncAddTransaction, returnError, 
 syncGetTransaction, syncGetTransactionID, transactionDoesNotExists, createNewITokenContract,
 fundAddedEvent|}
 
@@ -183,11 +179,11 @@ channel transactionDoesNotExists
 
 InitBlockchain = Blockchain((| |), (| |))
 
-Blockchain(transactions, partyVsTransaction) =  syncAddTransaction?keyBytes32?transaction -> Blockchain(updateBlockchainAddTransaction((keyBytes32, transaction), transactions), partyVsTransaction)              
-                                            []  syncGetTransactionID?scriptHash -> if mapMember(transactions, scriptHash) then syncGetTransaction!lookForTransaction(transactions, scriptHash) -> Blockchain(transactions, partyVsTransaction) --Retornar a transacao
+Blockchain(transactions, partyVsTransaction) =  syncAddTransaction?scriptHash?transaction -> Blockchain(transactions, partyVsTransaction)  --??? Atualizar o map com a nova transacao(esta havendo um deadlock)???            
+                                            []  syncGetTransactionID?scriptHash -> if mapMember(transactions, scriptHash) then syncGetTransaction!lookForTransaction(transactions, scriptHash) -> syncAddFundsOrTokensToTransaction?scriptHash?transaction -> Blockchain(updateBlockchainUpdateTransaction(scriptHash, transaction, transactions), partyVsTransaction)   --Retornar a transacao
                                                                                    else transactionDoesNotExists -> Blockchain(transactions, partyVsTransaction)  
-                                            []  syncAddFundsOrTokensToTransaction?scriptHash?value -> Blockchain(transactions, partyVsTransaction)
-                                            
+                                                                          
+                                                  
 
 WBlockchain = {|syncAddTransaction, syncAddFundsOrTokensToTransaction, syncGetTransaction, syncGetTransactionID, 
 transactionDoesNotExists|}
@@ -200,8 +196,8 @@ updateBlockchainUpdateTransaction(scriptHash, transaction, map) = mapUpdate(map,
 lookForTransaction(map, key) = mapLookup(map, key) 
 
 --------------------------------Utils--------------------------------
---SafeMath
-add(x, y) = numbersType
+--SafeMath ???? Adicionar o valor a transção ???
+add((value, lastModified, status, transactionType, threshold, timeoutHours, buyer, seller, tokenAddress, moderator, released, noOfReleases), valueToAdd) = (value, lastModified, status, transactionType, threshold, timeoutHours, buyer, seller, tokenAddress, moderator, released, noOfReleases)
 
 getBytes({bytes}) = bytes
 --------------------------------Asserts & Paralelism--------------------------------
