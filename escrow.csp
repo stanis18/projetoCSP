@@ -14,11 +14,12 @@ datatype expection = expection1  | expection2  | expection3  | expection4  | exp
                      expection11 | expection12 | expection13 | expection14 | expection15
 
 Transaction = {(value, lastModified, status, transactionType, threshold, timeoutHours, 
-buyer, seller, tokenAddress, moderator, released, noOfReleases) | 
+buyer, seller, tokenAddress, moderator, released, noOfReleases, isOwner) | 
 value <- {uint256}, lastModified <- {uint256}, status <- Status, 
 transactionType <- TransactionType, threshold <- {uint8}, timeoutHours <- {uint32},
 buyer <- address, seller <- address, tokenAddress <- address, moderator <- address,
-released <- {uint256}, noOfReleases <- {uint256}} 
+released <- {uint256}, noOfReleases <- {uint256}, isOwner <- {(| key => value |) | key <- address, value <- Bool },
+voted <- {(| key => value |) | key <- bytes32, value <- Bool }, beneficiaries <- {(| key => value |) | key <- address, value <- Bool }} 
 
 ParametersAddTransaction = {(buyer, seller, moderator, threshold, timeoutHours, scriptHash, value,
 uniqueId, transactionType, tokenAddress) | 
@@ -106,9 +107,9 @@ getTokenAddress((buyer, seller, moderator, threshold, timeoutHours, scriptHash, 
 getTimeoutHours((buyer, seller, moderator, threshold, timeoutHours, scriptHash, value, uniqueId, transactionType, tokenAddress)) = timeoutHours
 
 -- retornar valores de uma transação
-getBuyerTransaction((value, lastModified, status, transactionType, threshold, timeoutHours, buyer, seller, tokenAddress, moderator, released, noOfReleases)) = buyer 
-getStateTransaction((value, lastModified, status, transactionType, threshold, timeoutHours, buyer, seller, tokenAddress, moderator, released, noOfReleases)) = status 
-getTypeTransaction((value, lastModified, status, transactionType, threshold,  timeoutHours, buyer, seller, tokenAddress, moderator, released, noOfReleases)) = transactionType 
+getBuyerTransaction((value, lastModified, status, transactionType, threshold, timeoutHours, buyer, seller, tokenAddress, moderator, released, noOfReleases, isOwner)) = buyer 
+getStateTransaction((value, lastModified, status, transactionType, threshold, timeoutHours, buyer, seller, tokenAddress, moderator, released, noOfReleases, isOwner)) = status 
+getTypeTransaction((value, lastModified, status, transactionType, threshold,  timeoutHours, buyer, seller, tokenAddress, moderator, released, noOfReleases, isOwner)) = transactionType 
 
 
 -- Metodo para calcular o scriptHash
