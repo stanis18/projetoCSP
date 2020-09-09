@@ -2,7 +2,7 @@
 datatype Status = FUNDED | RELEASED
 datatype TransactionType = ETHER | TOKEN
 
-datatype address = zeroAddress | zeroX.{uint256} -- ???Como representar melhor strings???
+datatype address = zeroAddress | sellerAddress | buyerAddress | moderatorAddress | desconhecidoAddress
 datatype bytes32 = b32.{uint256}
 datatype bytes20 = b20.{uint256}
 datatype list = arrayUint256 | arrayAddress
@@ -14,8 +14,8 @@ datatype expection = expection1  | expection2  | expection3  | expection4  | exp
                      expection11 | expection12 | expection13 | expection14 | expection15
 
 Transaction = {(value, lastModified, status, transactionType, threshold, timeoutHours, 
-buyer, seller, tokenAddress, moderator, released, noOfReleases, isOwner) | 
-value <- {uint256}, lastModified <- {uint256}, status <- Status, 
+buyer, seller, tokenAddress, moderator, released, noOfReleases, isOwner, voted, beneficiaries, msgSender) | 
+value <- {uint256}, lastModified <- {uint256}, status <- Status, msgSender <- address,
 transactionType <- TransactionType, threshold <- {uint8}, timeoutHours <- {uint32},
 buyer <- address, seller <- address, tokenAddress <- address, moderator <- address,
 released <- {uint256}, noOfReleases <- {uint256}, isOwner <- {(| key => value |) | key <- address, value <- Bool },
@@ -36,12 +36,20 @@ transactionType <- {TOKEN}, tokenAddress <- address}
 ParametersCalculateRedeemScriptHash = {(buyer, seller, moderator, threshold, timeoutHours, uniqueId, tokenAddress) | 
 buyer <- address, seller <- address, moderator <- address, threshold <- {uint8},
 timeoutHours <- {uint32}, uniqueId <- bytes20, tokenAddress <- address} 
+
+ParametersCheckVoteORCheckBeneficiary = {(scriptHash, party) | scriptHash <- bytes32, party <- address }
+
                                                                 --??? Value é do tipo uint ???
 ParametersAddTokensToTransaction = {(scriptHash, value, msgSender) | value <- {0..2}, scriptHash <- bytes32, msgSender <- address } 
 
 ParametersGetTransactionHash = {(scriptHash, destinations, amounts) | scriptHash <- bytes32, destinations <- { arrayAddress }, amounts <- { arrayUint256 }} 
 
---------------------------------Channels--------------------------------
+ParametersExecute = {(calldataSigV, calldataSigR, calldataSigS, scriptHash, calldataDestinations, calldataAmounts) | 
+scriptHash <- bytes32, calldataSigV <- {<{uint8}>}, calldataSigR <- {<bytes32>}, calldataSigS <- {<bytes32>}, 
+calldataDestinations <- {<address>}, calldataAmounts <- {<{uint256}>}} 
+
+
+--------------------Channels--------------------------------
 channel syncAddTransaction : bytes32.Transaction
 channel syncAddFundsOrTokensToTransaction : bytes32.Transaction
 
@@ -50,9 +58,8 @@ channel syncGetTransaction : Transaction
 
 
 --------------------------------Contract--------------------------------
-channel checkBeneficiary, checkVote
-channel getAllTransactionsForParty
-channel execute
+channel getAllTransactionsForParty : address
+channel execute : ParametersExecute
 
 channel createTransaction : Transaction
 channel addTransaction : ParametersAddTransaction
@@ -60,17 +67,18 @@ channel addTokenTransaction : ParametersAddTransactionToken
 channel calculateRedeemScriptHash : ParametersCalculateRedeemScriptHash.bytes32
 channel addTokensToTransaction, addFundsToTransaction : ParametersAddTokensToTransaction
 channel getTransactionHash : ParametersGetTransactionHash.bytes32
+channel checkVote, checkBeneficiary : ParametersCheckVoteORCheckBeneficiary
 
 channel returnError : expection
 
 Escrow =   addTransaction?parameters -> addTransaction_(parameters)
         [] addTokenTransaction?parameters -> addTransaction_(parameters)
-        [] checkBeneficiary -> checkBeneficiary_()
-        [] checkVote -> checkVote_()
+        [] checkBeneficiary?parameters -> checkBeneficiary_(parameters)
+        [] checkVote?parameters -> checkVote_(parameters)
         [] addFundsToTransaction?parameters -> addFundsToTransaction_(parameters)
         [] addTokensToTransaction?parameters -> addTokensToTransaction_(parameters) 
-        [] getAllTransactionsForParty -> getAllTransactionsForParty_()
-        [] execute -> execute_()
+        [] getAllTransactionsForParty?address -> getAllTransactionsForParty_(address)
+        [] execute?parameters -> execute_(parameters)
         [] getTransactionHash?parameters!getBytes(getTransactionHash_(parameters)) -> Escrow
         [] calculateRedeemScriptHash?parameters!getBytes(calculateRedeemScriptHash_(parameters)) -> Escrow
 
@@ -83,7 +91,7 @@ addTransaction_(parameters) =  if getBuyer(parameters) !=  getSeller(parameters)
                                         if getThreshold(parameters) <= 3 then 
                                             if (getThreshold(parameters)  == 1 or getModerator(parameters) != zeroAddress ) then 
                                                 if(getScriptHash(parameters) == getBytes(calculateRedeemScriptHash_((getBuyer(parameters), getSeller(parameters), getModerator(parameters), getThreshold(parameters), getTimeoutHours(parameters), getUniqueId(parameters), getTokenAddress(parameters))))) then 
-                                                    createTransaction?transaction -> syncAddTransaction!getScriptHash(parameters)!transaction -> Escrow
+                                                    createTransaction?transaction -> syncAddTransaction!getScriptHash(parameters)!transaction -> fundedEvent!getValueTransaction(transaction)!getScriptHash(parameters)!getMsgSenderTransaction(transaction) -> Escrow
                                                 else throwError(expection6)
                                             else throwError(expection5) 
                                         else throwError(expection4)
@@ -107,9 +115,11 @@ getTokenAddress((buyer, seller, moderator, threshold, timeoutHours, scriptHash, 
 getTimeoutHours((buyer, seller, moderator, threshold, timeoutHours, scriptHash, value, uniqueId, transactionType, tokenAddress)) = timeoutHours
 
 -- retornar valores de uma transação
-getBuyerTransaction((value, lastModified, status, transactionType, threshold, timeoutHours, buyer, seller, tokenAddress, moderator, released, noOfReleases, isOwner)) = buyer 
-getStateTransaction((value, lastModified, status, transactionType, threshold, timeoutHours, buyer, seller, tokenAddress, moderator, released, noOfReleases, isOwner)) = status 
-getTypeTransaction((value, lastModified, status, transactionType, threshold,  timeoutHours, buyer, seller, tokenAddress, moderator, released, noOfReleases, isOwner)) = transactionType 
+getBuyerTransaction((value, lastModified, status, transactionType, threshold, timeoutHours, buyer, seller, tokenAddress, moderator, released, noOfReleases, isOwner, voted, beneficiaries, msgSender)) = buyer 
+getStateTransaction((value, lastModified, status, transactionType, threshold, timeoutHours, buyer, seller, tokenAddress, moderator, released, noOfReleases, isOwner, voted, beneficiaries, msgSender)) = status 
+getTypeTransaction((value, lastModified, status, transactionType, threshold,  timeoutHours, buyer, seller, tokenAddress, moderator, released, noOfReleases, isOwner, voted, beneficiaries, msgSender)) = transactionType 
+getValueTransaction((value, lastModified, status, transactionType, threshold,  timeoutHours, buyer, seller, tokenAddress, moderator, released, noOfReleases, isOwner, voted, beneficiaries, msgSender)) = value
+getMsgSenderTransaction((value, lastModified, status, transactionType, threshold,  timeoutHours, buyer, seller, tokenAddress, moderator, released, noOfReleases, isOwner, voted, beneficiaries, msgSender)) = msgSender  
 
 
 -- Metodo para calcular o scriptHash
@@ -118,7 +128,8 @@ calculateRedeemScriptHash_((buyer, seller, moderator, threshold, timeoutHours, u
 
 --Metodo addTokenTransaction
 channel createNewITokenContract, teste
-channel fundAddedEvent :  {0..2}.bytes32.address
+channel fundAddedEvent : {0..2}.bytes32.address
+channel fundedEvent : numbersType.bytes32.address
 addTokensToTransaction_((scriptHash, value, msgSender)) = syncGetTransactionID!scriptHash -> ( syncGetTransaction?transaction -> (if getStateTransaction(transaction) == FUNDED then 
                                                                                                                                 if getTypeTransaction(transaction) == TOKEN then 
                                                                                                                                     if getBuyerTransaction(transaction) == msgSender then 
@@ -147,30 +158,26 @@ addFundsToTransaction_((scriptHash, value, msgSender)) = syncGetTransactionID!sc
 
 
 
+checkBeneficiary_(parameters) = Escrow
+
+checkVote_(parameters) = Escrow
 
 
+
+getAllTransactionsForParty_(parameter) = Escrow
+
+
+execute_(parameters) = Escrow
 
 
 --Metodo para conseguir o hash da transacao
 getTransactionHash_((scriptHash, destinations, amounts)) = bytes32
 
-
-checkBeneficiary_() = Escrow
-
-checkVote_() = Escrow
-
-
-
-getAllTransactionsForParty_() = Escrow
-
-
-execute_() = Escrow
-
 --Windows
 WEscrow = {|addTransaction, addTokenTransaction, checkBeneficiary, checkVote, 
 addFundsToTransaction, addTokensToTransaction, getAllTransactionsForParty, 
 execute, getTransactionHash, calculateRedeemScriptHash, syncAddFundsOrTokensToTransaction,
-createTransaction, syncAddTransaction, returnError, 
+createTransaction, syncAddTransaction, returnError, fundedEvent,
 syncGetTransaction, syncGetTransactionID, transactionDoesNotExists, createNewITokenContract,
 fundAddedEvent|}
 
@@ -183,7 +190,9 @@ InitBlockchain = Blockchain((| |), (| |))
 Blockchain(transactions, partyVsTransaction) =  syncAddTransaction?scriptHash?transaction -> Blockchain(transactions, partyVsTransaction)  --??? Atualizar o map com a nova transacao(esta havendo um deadlock)???            
                                             []  syncGetTransactionID?scriptHash -> if mapMember(transactions, scriptHash) then syncGetTransaction!lookForTransaction(transactions, scriptHash) -> syncAddFundsOrTokensToTransaction?scriptHash?transaction -> Blockchain(updateBlockchainUpdateTransaction(scriptHash, transaction, transactions), partyVsTransaction)   --Retornar a transacao
                                                                                    else transactionDoesNotExists -> Blockchain(transactions, partyVsTransaction)  
-                                                                          
+                                             []  syncGetTransactionID?scriptHash -> if mapMember(transactions, scriptHash) then syncGetTransaction!lookForTransaction(transactions, scriptHash) -> Blockchain(transactions, partyVsTransaction)   --Retornar a transacao
+                                                                                   else transactionDoesNotExists -> Blockchain(transactions, partyVsTransaction)  
+                                                                         
                                                   
 
 WBlockchain = {|syncAddTransaction, syncAddFundsOrTokensToTransaction, syncGetTransaction, syncGetTransactionID, 
