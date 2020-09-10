@@ -2,7 +2,7 @@
 datatype Status = FUNDED | RELEASED
 datatype TransactionType = ETHER | TOKEN
 
-datatype address = zeroAddress | sellerAddress | buyerAddress | moderatorAddress | desconhecidoAddress
+datatype address = zeroAddress | validAddress
 datatype bytes32 = b32.{uint256}
 datatype bytes20 = b20.{uint256}
 datatype list = arrayUint256 | arrayAddress
@@ -120,6 +120,7 @@ getStateTransaction((value, lastModified, status, transactionType, threshold, ti
 getTypeTransaction((value, lastModified, status, transactionType, threshold,  timeoutHours, buyer, seller, tokenAddress, moderator, released, noOfReleases, isOwner, voted, beneficiaries, msgSender)) = transactionType 
 getValueTransaction((value, lastModified, status, transactionType, threshold,  timeoutHours, buyer, seller, tokenAddress, moderator, released, noOfReleases, isOwner, voted, beneficiaries, msgSender)) = value
 getMsgSenderTransaction((value, lastModified, status, transactionType, threshold,  timeoutHours, buyer, seller, tokenAddress, moderator, released, noOfReleases, isOwner, voted, beneficiaries, msgSender)) = msgSender  
+getBeneficiariesTransaction((value, lastModified, status, transactionType, threshold,  timeoutHours, buyer, seller, tokenAddress, moderator, released, noOfReleases, isOwner, voted, beneficiaries, msgSender)) = beneficiaries  
 
 
 -- Metodo para calcular o scriptHash
@@ -156,16 +157,16 @@ addFundsToTransaction_((scriptHash, value, msgSender)) = syncGetTransactionID!sc
                                                                                              [] transactionDoesNotExists -> throwError(expection7) )
 
 
+channel returnCheckBeneficiary : Bool
 
-
-checkBeneficiary_(parameters) = Escrow
+checkBeneficiary_((scriptHash, beneficiary)) = syncGetTransactionID!scriptHash -> ( syncGetTransaction?transaction -> (if mapMember(getBeneficiariesTransaction(transaction), beneficiary) then returnCheckBeneficiary!mapLookup(getBeneficiariesTransaction(transaction), beneficiary) -> Escrow
+                                                                                                                      else returnCheckBeneficiary!false -> Escrow)
+                                                                               
+                                                                               [] transactionDoesNotExists -> returnCheckBeneficiary!false -> Escrow)
 
 checkVote_(parameters) = Escrow
 
-
-
 getAllTransactionsForParty_(parameter) = Escrow
-
 
 execute_(parameters) = Escrow
 
@@ -177,7 +178,7 @@ getTransactionHash_((scriptHash, destinations, amounts)) = bytes32
 WEscrow = {|addTransaction, addTokenTransaction, checkBeneficiary, checkVote, 
 addFundsToTransaction, addTokensToTransaction, getAllTransactionsForParty, 
 execute, getTransactionHash, calculateRedeemScriptHash, syncAddFundsOrTokensToTransaction,
-createTransaction, syncAddTransaction, returnError, fundedEvent,
+createTransaction, syncAddTransaction, returnError, fundedEvent, returnCheckBeneficiary,
 syncGetTransaction, syncGetTransactionID, transactionDoesNotExists, createNewITokenContract,
 fundAddedEvent|}
 
