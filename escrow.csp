@@ -120,7 +120,8 @@ getStateTransaction((value, lastModified, status, transactionType, threshold, ti
 getTypeTransaction((value, lastModified, status, transactionType, threshold,  timeoutHours, buyer, seller, tokenAddress, moderator, released, noOfReleases, isOwner, voted, beneficiaries, msgSender)) = transactionType 
 getValueTransaction((value, lastModified, status, transactionType, threshold,  timeoutHours, buyer, seller, tokenAddress, moderator, released, noOfReleases, isOwner, voted, beneficiaries, msgSender)) = value
 getMsgSenderTransaction((value, lastModified, status, transactionType, threshold,  timeoutHours, buyer, seller, tokenAddress, moderator, released, noOfReleases, isOwner, voted, beneficiaries, msgSender)) = msgSender  
-getBeneficiariesTransaction((value, lastModified, status, transactionType, threshold,  timeoutHours, buyer, seller, tokenAddress, moderator, released, noOfReleases, isOwner, voted, beneficiaries, msgSender)) = beneficiaries  
+getBeneficiariesTransaction((value, lastModified, status, transactionType, threshold,  timeoutHours, buyer, seller, tokenAddress, moderator, released, noOfReleases, isOwner, voted, beneficiaries, msgSender)) = beneficiaries
+getVotedTransaction((value, lastModified, status, transactionType, threshold,  timeoutHours, buyer, seller, tokenAddress, moderator, released, noOfReleases, isOwner, voted, beneficiaries, msgSender)) = voted    
 
 
 -- Metodo para calcular o scriptHash
@@ -157,14 +158,16 @@ addFundsToTransaction_((scriptHash, value, msgSender)) = syncGetTransactionID!sc
                                                                                              [] transactionDoesNotExists -> throwError(expection7) )
 
 
-channel returnCheckBeneficiary : Bool
+channel returnCheckBeneficiary, returnCheckVote : Bool
 
 checkBeneficiary_((scriptHash, beneficiary)) = syncGetTransactionID!scriptHash -> ( syncGetTransaction?transaction -> (if mapMember(getBeneficiariesTransaction(transaction), beneficiary) then returnCheckBeneficiary!mapLookup(getBeneficiariesTransaction(transaction), beneficiary) -> Escrow
                                                                                                                       else returnCheckBeneficiary!false -> Escrow)
-                                                                               
                                                                                [] transactionDoesNotExists -> returnCheckBeneficiary!false -> Escrow)
 
-checkVote_(parameters) = Escrow
+checkVote_((scriptHash, party)) = syncGetTransactionID!scriptHash -> ( syncGetTransaction?transaction -> (if mapMember(getVotedTransaction(transaction), scriptHash) then returnCheckVote!mapLookup(getVotedTransaction(transaction), scriptHash) -> Escrow
+                                                                                                                      else returnCheckVote!false -> Escrow)
+                                                                               [] transactionDoesNotExists -> returnCheckVote!false -> Escrow)
+
 
 getAllTransactionsForParty_(parameter) = Escrow
 
@@ -180,7 +183,7 @@ addFundsToTransaction, addTokensToTransaction, getAllTransactionsForParty,
 execute, getTransactionHash, calculateRedeemScriptHash, syncAddFundsOrTokensToTransaction,
 createTransaction, syncAddTransaction, returnError, fundedEvent, returnCheckBeneficiary,
 syncGetTransaction, syncGetTransactionID, transactionDoesNotExists, createNewITokenContract,
-fundAddedEvent|}
+fundAddedEvent, returnCheckVote|}
 
 
 --------------------------------Blockchain--------------------------------
