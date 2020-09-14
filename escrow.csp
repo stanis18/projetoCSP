@@ -54,8 +54,9 @@ channel syncAddTransaction : bytes32.Transaction
 channel syncAddFundsOrTokensToTransaction : bytes32.Transaction
 
 channel syncGetTransactionID : bytes32
+channel syncGetPartyID : address
 channel syncGetTransaction : Transaction
-
+channel syncGetAllTransactionsForParty : {<bytes32>}
 
 --------------------------------Contract--------------------------------
 channel getAllTransactionsForParty : address
@@ -183,31 +184,34 @@ addFundsToTransaction, addTokensToTransaction, getAllTransactionsForParty,
 execute, getTransactionHash, calculateRedeemScriptHash, syncAddFundsOrTokensToTransaction,
 createTransaction, syncAddTransaction, returnError, fundedEvent, returnCheckBeneficiary,
 syncGetTransaction, syncGetTransactionID, transactionDoesNotExists, createNewITokenContract,
-fundAddedEvent, returnCheckVote|}
+fundAddedEvent, returnCheckVote, syncGetAllTransactionsForParty|}
 
 
 --------------------------------Blockchain--------------------------------
-channel transactionDoesNotExists
+channel transactionDoesNotExists, partyVsTransactionDoesNotExists
 
 InitBlockchain = Blockchain((| |), (| |))
 
 Blockchain(transactions, partyVsTransaction) =  syncAddTransaction?scriptHash?transaction -> Blockchain(transactions, partyVsTransaction)  --??? Atualizar o map com a nova transacao(esta havendo um deadlock)???            
-                                            []  syncGetTransactionID?scriptHash -> if mapMember(transactions, scriptHash) then syncGetTransaction!lookForTransaction(transactions, scriptHash) -> syncAddFundsOrTokensToTransaction?scriptHash?transaction -> Blockchain(updateBlockchainUpdateTransaction(scriptHash, transaction, transactions), partyVsTransaction)   --Retornar a transacao
+                                            []  syncGetTransactionID?scriptHash -> if mapMember(transactions, scriptHash) then syncGetTransaction!getValueFromMap(transactions, scriptHash) -> syncAddFundsOrTokensToTransaction?scriptHash?transaction -> Blockchain(updateBlockchainUpdateTransaction(scriptHash, transaction, transactions), partyVsTransaction)   --Retornar a transacao
                                                                                    else transactionDoesNotExists -> Blockchain(transactions, partyVsTransaction)  
-                                             []  syncGetTransactionID?scriptHash -> if mapMember(transactions, scriptHash) then syncGetTransaction!lookForTransaction(transactions, scriptHash) -> Blockchain(transactions, partyVsTransaction)   --Retornar a transacao
+                                            []  syncGetTransactionID?scriptHash -> if mapMember(transactions, scriptHash) then syncGetTransaction!getValueFromMap(transactions, scriptHash) -> Blockchain(transactions, partyVsTransaction)   --Retornar a transacao
                                                                                    else transactionDoesNotExists -> Blockchain(transactions, partyVsTransaction)  
-                                                                         
-                                                  
+                                            [] syncGetPartyID?address -> if mapMember(partyVsTransaction, address) then syncGetAllTransactionsForParty!mapLookup(partyVsTransaction, address) -> Blockchain(transactions, partyVsTransaction)  
+                                                                         else partyVsTransactionDoesNotExists -> Blockchain(transactions, partyVsTransaction) 
+
+
+
 
 WBlockchain = {|syncAddTransaction, syncAddFundsOrTokensToTransaction, syncGetTransaction, syncGetTransactionID, 
-transactionDoesNotExists|}
+transactionDoesNotExists, syncGetAllTransactionsForParty|}
 
 
 updateBlockchainAddTransaction(value, map) = mapFromList(mapToList(map) ^ <value>) --Converte o mapa para lista adiciona o valor e após isso para mapa novamente
 
 updateBlockchainUpdateTransaction(scriptHash, transaction, map) = mapUpdate(map, scriptHash, transaction)
 
-lookForTransaction(map, key) = mapLookup(map, key) 
+getValueFromMap(map, key) = mapLookup(map, key) 
 
 --------------------------------Utils--------------------------------
 --SafeMath ???? Adicionar o valor a transção ???
