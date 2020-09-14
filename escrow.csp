@@ -56,7 +56,7 @@ channel syncAddFundsOrTokensToTransaction : bytes32.Transaction
 channel syncGetTransactionID : bytes32
 channel syncGetPartyID : address
 channel syncGetTransaction : Transaction
-channel syncGetAllTransactionsForParty : {<bytes32>}
+channel syncGetAllTransactionsForParty, returnTransactionsForParty : {<bytes32>}
 
 --------------------------------Contract--------------------------------
 channel getAllTransactionsForParty : address
@@ -170,8 +170,8 @@ checkVote_((scriptHash, party)) = syncGetTransactionID!scriptHash -> ( syncGetTr
                                                                                [] transactionDoesNotExists -> returnCheckVote!false -> Escrow)
 
 
-getAllTransactionsForParty_(parameter) = Escrow
-
+getAllTransactionsForParty_(parameter) = syncGetPartyID!parameter -> getAllTransactionsForParty?listPartyTransaction -> Escrow
+                                                                   []  partyVsTransactionDoesNotExists -> Escrow
 execute_(parameters) = Escrow
 
 
@@ -184,7 +184,7 @@ addFundsToTransaction, addTokensToTransaction, getAllTransactionsForParty,
 execute, getTransactionHash, calculateRedeemScriptHash, syncAddFundsOrTokensToTransaction,
 createTransaction, syncAddTransaction, returnError, fundedEvent, returnCheckBeneficiary,
 syncGetTransaction, syncGetTransactionID, transactionDoesNotExists, createNewITokenContract,
-fundAddedEvent, returnCheckVote, syncGetAllTransactionsForParty|}
+fundAddedEvent, returnCheckVote, syncGetAllTransactionsForParty, syncGetPartyID|}
 
 
 --------------------------------Blockchain--------------------------------
@@ -196,7 +196,8 @@ Blockchain(transactions, partyVsTransaction) =  syncAddTransaction?scriptHash?tr
                                             []  syncGetTransactionID?scriptHash -> if mapMember(transactions, scriptHash) then syncGetTransaction!getValueFromMap(transactions, scriptHash) -> syncAddFundsOrTokensToTransaction?scriptHash?transaction -> Blockchain(updateBlockchainUpdateTransaction(scriptHash, transaction, transactions), partyVsTransaction)   --Retornar a transacao
                                                                                    else transactionDoesNotExists -> Blockchain(transactions, partyVsTransaction)  
                                             []  syncGetTransactionID?scriptHash -> if mapMember(transactions, scriptHash) then syncGetTransaction!getValueFromMap(transactions, scriptHash) -> Blockchain(transactions, partyVsTransaction)   --Retornar a transacao
-                                                                                   else transactionDoesNotExists -> Blockchain(transactions, partyVsTransaction)  
+                                                                                   else transactionDoesNotExists -> Blockchain(transactions, partyVsTransaction) 
+                                           -- []  syncGetPartyID?address -> Blockchain(transactions, partyVsTransaction)                                         
                                             [] syncGetPartyID?address -> if mapMember(partyVsTransaction, address) then syncGetAllTransactionsForParty!mapLookup(partyVsTransaction, address) -> Blockchain(transactions, partyVsTransaction)  
                                                                          else partyVsTransactionDoesNotExists -> Blockchain(transactions, partyVsTransaction) 
 
@@ -204,7 +205,7 @@ Blockchain(transactions, partyVsTransaction) =  syncAddTransaction?scriptHash?tr
 
 
 WBlockchain = {|syncAddTransaction, syncAddFundsOrTokensToTransaction, syncGetTransaction, syncGetTransactionID, 
-transactionDoesNotExists, syncGetAllTransactionsForParty|}
+transactionDoesNotExists, syncGetAllTransactionsForParty, syncGetPartyID, getAllTransactionsForParty|}
 
 
 updateBlockchainAddTransaction(value, map) = mapFromList(mapToList(map) ^ <value>) --Converte o mapa para lista adiciona o valor e após isso para mapa novamente
