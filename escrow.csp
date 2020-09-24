@@ -102,6 +102,9 @@ addTransaction_(parameters) =  if getBuyer(parameters) !=  getSeller(parameters)
 
 throwError(err) = returnError!err -> Escrow
 
+-- channel returnModifiernonZeroAddress : Bool
+-- modifiernonZeroAddress(address) =  if getValueTransaction(transaction) == uint256 then returnModifiernonZeroAddress!true
+--                                   else throwError(expection1) 
 
 -- para retornar valores dos parametros addTransaction_
 getValue((buyer, seller, moderator, threshold, timeoutHours, scriptHash, value, uniqueId, transactionType, tokenAddress)) = 3 -- ???Como representar os numeros sem travar???
@@ -197,7 +200,6 @@ Blockchain(transactions, partyVsTransaction) =  syncAddTransaction?scriptHash?tr
                                                                                    else transactionDoesNotExists -> Blockchain(transactions, partyVsTransaction)  
                                             []  syncGetTransactionID?scriptHash -> if mapMember(transactions, scriptHash) then syncGetTransaction!getValueFromMap(transactions, scriptHash) -> Blockchain(transactions, partyVsTransaction)   --Retornar a transacao
                                                                                    else transactionDoesNotExists -> Blockchain(transactions, partyVsTransaction) 
-                                           -- []  syncGetPartyID?address -> Blockchain(transactions, partyVsTransaction)                                         
                                             [] syncGetPartyID?address -> if mapMember(partyVsTransaction, address) then syncGetAllTransactionsForParty!mapLookup(partyVsTransaction, address) -> Blockchain(transactions, partyVsTransaction)  
                                                                          else partyVsTransactionDoesNotExists -> Blockchain(transactions, partyVsTransaction) 
 
