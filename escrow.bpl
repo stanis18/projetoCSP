@@ -47,7 +47,6 @@ var partyVsTransaction : [address] [int] bytes32; //mapa de para um array de byt
 
 var transactionCount : int;
 
-
 //-----------------------------Modifiers--------------------------------------------
 
 procedure transactionDoesNotExistModifier(scriptHash : bytes32, transactionsMap : [bytes32] Ref) returns (ret: bool) {
@@ -82,8 +81,6 @@ procedure onlyBuyerModifier(scriptHash : bytes32, msg.sender : address, transact
 var Event.scriptHash : [Ref] bytes32;
 var Event.msg.senderEvent : [Ref] address;
 var Event.msg.valueEvent : [Ref] int;
-
-//Field (scriptHash, msg.sender, msg.value);
 
 //-------------------------------------------------------------------------
 
@@ -183,15 +180,30 @@ function calculateRedeemScriptHash(uniqueId : bytes20, threshold : int, timeoutH
 seller : address, moderator : address, tokenAddress : address) returns (bytes32);
     
 
-
-
-procedure checkBeneficiary(scriptHash : bytes32, beneficiary: address) {
-
+procedure checkBeneficiary(scriptHash : bytes32, beneficiary: address) returns (ret : bool) {
+   ret := Transaction.beneficiaries[transactions[scriptHash]] [beneficiary];
 }
 
-procedure checkVote(scriptHash : bytes32, party : address) {
+procedure checkVote(scriptHash : bytes32, party : address) returns (voted : bool) {
+  
+    var i : int;
+    var addressHash : bytes32;
+    voted := false;
 
+    assume(Transaction.noOfReleases [ transactions[scriptHash] ] >= 0);
+
+    i := 0;
+    while (i < Transaction.noOfReleases [ transactions[scriptHash] ] )
+     invariant i <= Transaction.noOfReleases [ transactions[scriptHash] ];
+     {
+        addressHash := keccak256(party, i);
+        if (Transaction.voted[transactions[scriptHash]] [addressHash] ){
+            voted := true;
+        }
+    }
 }
+
+function keccak256(party : address, index : int) returns (bytes32);
 
 procedure addFundsToTransaction(scriptHash : bytes32, msg.value : int) {
 
