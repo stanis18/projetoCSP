@@ -6,8 +6,6 @@ type bytes32;
 const alloc : bytes32;
 type Field G; 
 
-//type x = int where 0 < x ;
-
 type address; 
 const unique zeroAddress: address;
 const unique validAddress: address;
@@ -49,32 +47,32 @@ var transactionCount : int;
 
 //-----------------------------Modifiers--------------------------------------------
 
-procedure transactionDoesNotExistModifier(scriptHash : bytes32, transactionsMap : [bytes32] Ref) returns (ret: bool) {
-    ret := Transaction.value [ transactionsMap[scriptHash] ] == 0;
+procedure transactionDoesNotExistModifier(scriptHash : bytes32) returns (ret: bool) {
+    ret := Transaction.value [ transactions[scriptHash] ] == 0;
 }
 
-procedure transactionExistsModifier(scriptHash : bytes32, this : Ref, transactionsMap : [bytes32] Ref) returns (ret: bool) {
-     ret := Transaction.value [ transactionsMap[scriptHash] ] != 0;
+procedure transactionExistsModifier(scriptHash : bytes32, this : Ref) returns (ret: bool) {
+     ret := Transaction.value [ transactions[scriptHash] ] != 0;
 }
 
-procedure inFundedStateModifier(scriptHash : bytes32, transactionsMap : [bytes32] Ref) returns (ret: bool) {
-       ret := Transaction.status [ transactionsMap[scriptHash] ] == FUNDED;
+procedure inFundedStateModifier(scriptHash : bytes32) returns (ret: bool) {
+       ret := Transaction.status [ transactions[scriptHash] ] == FUNDED;
 }
 
-procedure fundsExistModifier(scriptHash : bytes32, transactionsMap : [bytes32] Ref) returns (ret : bool) {
-     ret := (Transaction.value [ transactionsMap[scriptHash] ] - Transaction.released [ transactionsMap[scriptHash] ] > 0);
+procedure fundsExistModifier(scriptHash : bytes32) returns (ret : bool) {
+     ret := (Transaction.value [ transactions[scriptHash] ] - Transaction.released [ transactions[scriptHash] ] > 0);
 }
 
 function nonZeroAddressModifier(addressToCheck : address, zAddress : address) returns (bool) {
     (addressToCheck != zAddress)
 }
 
-procedure checkTransactionTypeModifier(scriptHash : bytes32, transactionType : TransactionType, transactionsMap : [bytes32] Ref) returns (ret : bool) {
-    ret := Transaction.transactionType [ transactionsMap[scriptHash] ] == transactionType;
+procedure checkTransactionTypeModifier(scriptHash : bytes32, transactionType : TransactionType) returns (ret : bool) {
+    ret := Transaction.transactionType [ transactions[scriptHash] ] == transactionType;
 }
 
-procedure onlyBuyerModifier(scriptHash : bytes32, msg.sender : address, transactionsMap : [bytes32] Ref) returns (ret : bool) {
-     ret := Transaction.buyer [ transactionsMap[scriptHash] ] == msg.sender;
+procedure onlyBuyerModifier(scriptHash : bytes32, msg.sender : address) returns (ret : bool) {
+     ret := Transaction.buyer [ transactions[scriptHash] ] == msg.sender;
 }
 
 //-----------------------------Event--------------------------------------------
@@ -95,7 +93,7 @@ requires nonZeroAddressModifier(seller, zeroAddress);{
 
     
     var returnTransactionDoesNotExistModifier : bool;
-    call returnTransactionDoesNotExistModifier := transactionDoesNotExistModifier(scriptHash, transactions);
+    call returnTransactionDoesNotExistModifier := transactionDoesNotExistModifier(scriptHash);
     assume(returnTransactionDoesNotExistModifier);
     
     call addTransaction_ (buyer, seller, moderator, threshold, timeoutHours, scriptHash, msg.value, 
@@ -205,14 +203,14 @@ procedure checkVote(scriptHash : bytes32, party : address) returns (voted : bool
 
 function keccak256(party : address, index : int) returns (bytes32);
 
+
+procedure getAllTransactionsForParty (partyAddress : address) returns (ret : [int] bytes32){
+    ret := partyVsTransaction[partyAddress];
+}
+
 procedure addFundsToTransaction(scriptHash : bytes32, msg.value : int) {
 
 }
-
-procedure getAllTransactionsForParty (partyAddress : address){
-
-}
-
 
 procedure execute( calldataSigV : [int] int, calldataSigR : [int] bytes32, calldataSigS : [int] bytes32,
 scriptHash : bytes32,  calldataDestinations : [int] address, calldataAmounts : [int] int) {
