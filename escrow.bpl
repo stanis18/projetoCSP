@@ -36,6 +36,9 @@ var Transaction.isOwner : [Ref] [address] bool;
 var Transaction.voted : [Ref] [bytes32] bool;
 var Transaction.beneficiaries : [Ref] [address] bool;
 
+
+var ITokenContract.address :  [Ref] address;
+
 //-------------------------------------------------------------------------
 //Memory
 
@@ -83,7 +86,7 @@ var Event.msg.valueEvent : [Ref] int;
 //-------------------------------------------------------------------------
 
 procedure addTransaction(buyer : address, seller : address, moderator : address, threshold : int, 
-timeoutHours : int, scriptHash: bytes32, uniqueId : bytes20, msg.sender : address, msg.value : int, block.timestamp : int ) returns(thisEvent: Ref)
+timeoutHours : int, scriptHash: bytes32, uniqueId : bytes20, msg.sender : address, msg.value : int, block.timestamp : int, thisEscrow : address ) returns(thisEvent: Ref)
 modifies transactions, transactionCount, partyVsTransaction, Transaction.value, Transaction.lastModified, Transaction.status, Transaction.transactionType,
 Transaction.threshold, Transaction.timeoutHours, Transaction.buyer, Transaction.seller,
 Transaction.tokenAddress, Transaction.moderator, Transaction.released, Transaction.noOfReleases,
@@ -108,15 +111,39 @@ requires nonZeroAddressModifier(seller, zeroAddress);{
 }
 
 procedure addTokenTransaction(buyer : address, seller : address, moderator : address, threshold : int, 
-timeoutHours : int, scriptHash: bytes32, value : int, uniqueId : bytes20, msg.sender : address, block.timestamp : int ) 
+timeoutHours : int, scriptHash: bytes32, value : int, uniqueId : bytes20, tokenAddress : address, msg.sender : address, msg.value : int, block.timestamp : int, thisEscrow : address ) 
+returns(scriptHashEvent: bytes32, msg.senderEvent : address, msg.valueEvent : int)
 modifies transactions, transactionCount, partyVsTransaction, Transaction.value, Transaction.lastModified, Transaction.status, Transaction.transactionType,
 Transaction.threshold, Transaction.timeoutHours, Transaction.buyer, Transaction.seller,
 Transaction.tokenAddress, Transaction.moderator, Transaction.released, Transaction.noOfReleases,
-Transaction.isOwner, Transaction.voted, Transaction.beneficiaries;{
+Transaction.isOwner, Transaction.voted, Transaction.beneficiaries, ITokenContract.address, Event.scriptHash, Event.msg.senderEvent,  Event.msg.valueEvent;
+requires nonZeroAddressModifier(buyer, zeroAddress);
+requires nonZeroAddressModifier(seller, zeroAddress);
+requires nonZeroAddressModifier(tokenAddress, zeroAddress);{
+
+    var transactionDoesNotExistReturn : bool;
+    var thisToken : Ref;
+ 
+
+    call transactionDoesNotExistReturn := transactionDoesNotExistModifier(scriptHash);
+
+    assume(transactionDoesNotExistReturn);
 
     call addTransaction_ (buyer, seller, moderator, threshold, timeoutHours, scriptHash, value, 
     uniqueId, TOKEN, zeroAddress, msg.sender, block.timestamp);
+
+    assume(thisToken != null);
+    ITokenContract.address[thisToken] := tokenAddress;
+
+    scriptHashEvent := scriptHash;
+    msg.senderEvent := msg.sender;
+    msg.valueEvent  := msg.value;
+
+    assume(transferFrom(msg.sender, thisEscrow : address, msg.value ));
+
 }
+
+function transferFrom(msg.sender : address, thisEscrow : address, value : int) returns (bool);
 
 
 procedure addTransaction_ (buyer : address, seller : address, moderator : address, threshold : int,
@@ -231,6 +258,9 @@ modifies Transaction.value, Event.scriptHash, Event.msg.senderEvent,  Event.msg.
     Event.msg.senderEvent [thisEvent] := msg.sender;
     Event.msg.valueEvent [thisEvent] := msg.value;
 }
+
+
+
 
 procedure execute( calldataSigV : [int] int, calldataSigR : [int] bytes32, calldataSigS : [int] bytes32,
 scriptHash : bytes32,  calldataDestinations : [int] address, calldataAmounts : [int] int) {
