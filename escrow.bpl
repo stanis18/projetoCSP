@@ -50,52 +50,66 @@ var transactionCount : int;
 
 //-----------------------------Modifiers--------------------------------------------
 
- procedure transactionDoesNotExistModifier(scriptHash : bytes32, transactionsMap : [bytes32] Ref) returns (ret: bool) {
-    ret := Transaction.value [ transactionsMap[scriptHash] ] != 0;
+procedure transactionDoesNotExistModifier(scriptHash : bytes32, transactionsMap : [bytes32] Ref) returns (ret: bool) {
+    ret := Transaction.value [ transactionsMap[scriptHash] ] == 0;
 }
 
-function transactionExistsModifier(scriptHash : bytes32, this : Ref, transactionsMap : [bytes32] Ref) returns (bool) {
-   true
-   // (transactionsMap[scriptHash] != null)
+procedure transactionExistsModifier(scriptHash : bytes32, this : Ref, transactionsMap : [bytes32] Ref) returns (ret: bool) {
+     ret := Transaction.value [ transactionsMap[scriptHash] ] != 0;
 }
 
-function inFundedStateModifier(scriptHash : bytes32) returns (bool) {
-       true
+procedure inFundedStateModifier(scriptHash : bytes32, transactionsMap : [bytes32] Ref) returns (ret: bool) {
+       ret := Transaction.status [ transactionsMap[scriptHash] ] == FUNDED;
 }
 
-function fundsExistModifier(scriptHash : bytes32) returns (bool) {
-    true
+procedure fundsExistModifier(scriptHash : bytes32, transactionsMap : [bytes32] Ref) returns (ret : bool) {
+     ret := (Transaction.value [ transactionsMap[scriptHash] ] - Transaction.released [ transactionsMap[scriptHash] ] > 0);
 }
 
 function nonZeroAddressModifier(addressToCheck : address, zAddress : address) returns (bool) {
     (addressToCheck != zAddress)
 }
 
-function checkTransactionTypeModifier(scriptHash : bytes32, transactionType : TransactionType) returns (bool) {
-    true
+procedure checkTransactionTypeModifier(scriptHash : bytes32, transactionType : TransactionType, transactionsMap : [bytes32] Ref) returns (ret : bool) {
+    ret := Transaction.transactionType [ transactionsMap[scriptHash] ] == transactionType;
 }
 
-function onlyBuyerModifier(scriptHash : bytes32) returns (bool) {
-    true
+procedure onlyBuyerModifier(scriptHash : bytes32, msg.sender : address, transactionsMap : [bytes32] Ref) returns (ret : bool) {
+     ret := Transaction.buyer [ transactionsMap[scriptHash] ] == msg.sender;
 }
+
+//-----------------------------Event--------------------------------------------
+var Event.scriptHash : [Ref] bytes32;
+var Event.msg.senderEvent : [Ref] address;
+var Event.msg.valueEvent : [Ref] int;
+
+//Field (scriptHash, msg.sender, msg.value);
 
 //-------------------------------------------------------------------------
 
 procedure addTransaction(buyer : address, seller : address, moderator : address, threshold : int, 
-timeoutHours : int, scriptHash: bytes32, uniqueId : bytes20, msg.sender : address, msg.value : int, block.timestamp : int )
+timeoutHours : int, scriptHash: bytes32, uniqueId : bytes20, msg.sender : address, msg.value : int, block.timestamp : int ) returns(thisEvent: Ref)
 modifies transactions, transactionCount, partyVsTransaction, Transaction.value, Transaction.lastModified, Transaction.status, Transaction.transactionType,
 Transaction.threshold, Transaction.timeoutHours, Transaction.buyer, Transaction.seller,
 Transaction.tokenAddress, Transaction.moderator, Transaction.released, Transaction.noOfReleases,
-Transaction.isOwner, Transaction.voted, Transaction.beneficiaries;
+Transaction.isOwner, Transaction.voted, Transaction.beneficiaries,  Event.scriptHash, Event.msg.senderEvent,  Event.msg.valueEvent;
 requires nonZeroAddressModifier(buyer, zeroAddress);
 requires nonZeroAddressModifier(seller, zeroAddress);{
 
+    
     var returnTransactionDoesNotExistModifier : bool;
     call returnTransactionDoesNotExistModifier := transactionDoesNotExistModifier(scriptHash, transactions);
     assume(returnTransactionDoesNotExistModifier);
     
     call addTransaction_ (buyer, seller, moderator, threshold, timeoutHours, scriptHash, msg.value, 
     uniqueId, ETHER, zeroAddress, msg.sender, block.timestamp);
+
+    assume thisEvent != null;
+
+    Event.scriptHash [thisEvent] := scriptHash;
+    Event.msg.senderEvent [thisEvent] := msg.sender;
+    Event.msg.valueEvent [thisEvent] := msg.value;
+
 }
 
 procedure addTokenTransaction(buyer : address, seller : address, moderator : address, threshold : int, 
@@ -108,7 +122,6 @@ Transaction.isOwner, Transaction.voted, Transaction.beneficiaries;{
     call addTransaction_ (buyer, seller, moderator, threshold, timeoutHours, scriptHash, value, 
     uniqueId, TOKEN, zeroAddress, msg.sender, block.timestamp);
 }
-
 
 
 procedure addTransaction_ (buyer : address, seller : address, moderator : address, threshold : int,
