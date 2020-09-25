@@ -51,7 +51,7 @@ procedure transactionDoesNotExistModifier(scriptHash : bytes32) returns (ret: bo
     ret := Transaction.value [ transactions[scriptHash] ] == 0;
 }
 
-procedure transactionExistsModifier(scriptHash : bytes32, this : Ref) returns (ret: bool) {
+procedure transactionExistsModifier(scriptHash : bytes32) returns (ret: bool) {
      ret := Transaction.value [ transactions[scriptHash] ] != 0;
 }
 
@@ -208,8 +208,28 @@ procedure getAllTransactionsForParty (partyAddress : address) returns (ret : [in
     ret := partyVsTransaction[partyAddress];
 }
 
-procedure addFundsToTransaction(scriptHash : bytes32, msg.value : int) {
+function getTransactionHash(scriptHash : bytes32,  destinations : [int] address, amounts : [int] int) returns (bytes32);
 
+procedure addFundsToTransaction(scriptHash : bytes32, msg.sender : address, msg.value : int) returns (thisEvent: Ref) 
+modifies Transaction.value, Event.scriptHash, Event.msg.senderEvent,  Event.msg.valueEvent; {
+    
+    var transactionExistsReturn : bool;
+    var inFundedStateReturn : bool;
+    var checkTransactionTypeReturn : bool;
+    var onlyBuyerReturn : bool;
+    
+    call transactionExistsReturn := transactionExistsModifier(scriptHash);
+    call inFundedStateReturn := inFundedStateModifier(scriptHash);
+    call checkTransactionTypeReturn := checkTransactionTypeModifier(scriptHash, ETHER);
+    call onlyBuyerReturn :=  onlyBuyerModifier(scriptHash, msg.sender);
+    
+    assume(msg.value > 0);
+   
+    Transaction.value [ transactions[scriptHash] ] := Transaction.value [ transactions[scriptHash] ] + msg.value;
+
+    Event.scriptHash [thisEvent] := scriptHash;
+    Event.msg.senderEvent [thisEvent] := msg.sender;
+    Event.msg.valueEvent [thisEvent] := msg.value;
 }
 
 procedure execute( calldataSigV : [int] int, calldataSigR : [int] bytes32, calldataSigS : [int] bytes32,
@@ -217,8 +237,5 @@ scriptHash : bytes32,  calldataDestinations : [int] address, calldataAmounts : [
 
 }
 
-procedure getTransactionHash(scriptHash : bytes32,  destinations : [int] address,
-amounts : [int] int) {
 
-}
 
