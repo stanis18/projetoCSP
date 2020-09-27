@@ -1,0 +1,29 @@
+datatype Status = FUNDED | RELEASED
+datatype TransactionType = ETHER | TOKEN
+
+datatype address = zeroAddress | validAddress
+datatype bytes32 = b32.{uint256}
+datatype bytes20 = b20.{uint256}
+datatype list = arrayUint256 | arrayAddress
+
+
+datatype numbersType = uint | uint8 | uint32 | uint256 
+
+datatype expection = expection1  | expection2  | expection3  | expection4  | expection5  |
+                     expection6  | expection7  | expection8  | expection9  | expection10 |
+                     expection11 | expection12 | expection13 | expection14 | expection15
+
+inteiro = {0..5}
+--------------------------------Apêndice--------------------------------
+
+-- expection1 -> "Buyer and seller are same"
+-- expection2 -> "Value passed is 0"
+-- expection3 -> "Threshold must be greater than 0"
+-- expection4 -> "Threshold must not be greater than 3"
+-- expection5 -> "Either threshold should be 1 or valid moderator address should be passed"
+-- expection6 -> "Calculated script hash does not match passed script hash."
+-- expection7 -> "Transaction does not exist"
+-- expection8 -> Transaction is not in FUNDED state
+-- expection9 -> Transaction type does not match
+-- expection10 -> "The initiator of the transaction is not buyer"
+-- exception11 -> "Value must be greater than zero."

@@ -1,18 +1,5 @@
---------------------------------Constants--------------------------------
-datatype Status = FUNDED | RELEASED
-datatype TransactionType = ETHER | TOKEN
+include "types.csp"
 
-datatype address = zeroAddress | validAddress
-datatype bytes32 = b32.{uint256}
-datatype bytes20 = b20.{uint256}
-datatype list = arrayUint256 | arrayAddress
-
-
-datatype numbersType = uint | uint8 | uint32 | uint256 
-
-datatype expection = expection1  | expection2  | expection3  | expection4  | expection5  |
-                     expection6  | expection7  | expection8  | expection9  | expection10 |
-                     expection11 | expection12 | expection13 | expection14 | expection15
 
 Transaction = {(value, lastModified, status, transactionType, threshold, timeoutHours, 
 buyer, seller, tokenAddress, moderator, released, noOfReleases, isOwner, voted, beneficiaries, msgSender) | 
@@ -100,13 +87,8 @@ addTransaction_(parameters) =  require((getBuyer(parameters) !=  getSeller(param
  require(condition, err) = if condition then SKIP
                            else throwError(err)
 
-
-
 throwError(err) = returnError!err -> SKIP
 
--- channel returnModifiernonZeroAddress : Bool
--- modifiernonZeroAddress(address) =  if getValueTransaction(transaction) == uint256 then returnModifiernonZeroAddress!true
---                                   else throwError(expection1) 
 
 -- para retornar valores dos parametros addTransaction_
 getValue((buyer, seller, moderator, threshold, timeoutHours, scriptHash, value, uniqueId, transactionType, tokenAddress)) = 3 -- ???Como representar os numeros sem travar???
@@ -175,70 +157,15 @@ execute_(parameters) = Escrow
 --Metodo para conseguir o hash da transacao
 getTransactionHash_((scriptHash, destinations, amounts)) = bytes32
 
---Windows
-WEscrow = {|addTransaction, addTokenTransaction, checkBeneficiary, checkVote, 
-addFundsToTransaction, addTokensToTransaction, getAllTransactionsForParty, 
-execute, getTransactionHash, calculateRedeemScriptHash, syncAddFundsOrTokensToTransaction,
-createTransaction, syncAddTransaction, returnError, fundedEvent, returnCheckBeneficiary,
-syncGetTransaction, syncGetTransactionID, transactionDoesNotExists, createNewITokenContract,
-fundAddedEvent, returnCheckVote, syncGetAllTransactionsForParty, syncGetPartyID|}
 
 
---------------------------------Blockchain--------------------------------
+--------------------------------Blockchain Channels--------------------------------
 channel transactionDoesNotExists, partyVsTransactionDoesNotExists
 
-InitBlockchain = Blockchain((| |), (| |))
 
-Blockchain(transactions, partyVsTransaction) =  syncAddTransaction?scriptHash?transaction -> Blockchain(transactions, partyVsTransaction)  --??? Atualizar o map com a nova transacao(esta havendo um deadlock)???            
-                                            []  syncGetTransactionID?scriptHash -> if mapMember(transactions, scriptHash) then syncGetTransaction!getValueFromMap(transactions, scriptHash) -> syncAddFundsOrTokensToTransaction?scriptHash?transaction -> Blockchain(updateBlockchainUpdateTransaction(scriptHash, transaction, transactions), partyVsTransaction)   --Retornar a transacao
-                                                                                   else transactionDoesNotExists -> Blockchain(transactions, partyVsTransaction)  
-                                            []  syncGetTransactionID?scriptHash -> if mapMember(transactions, scriptHash) then syncGetTransaction!getValueFromMap(transactions, scriptHash) -> Blockchain(transactions, partyVsTransaction)   --Retornar a transacao
-                                                                                   else transactionDoesNotExists -> Blockchain(transactions, partyVsTransaction) 
-                                            [] syncGetPartyID?address -> if mapMember(partyVsTransaction, address) then syncGetAllTransactionsForParty!mapLookup(partyVsTransaction, address) -> Blockchain(transactions, partyVsTransaction)  
-                                                                         else partyVsTransactionDoesNotExists -> Blockchain(transactions, partyVsTransaction) 
-
-
-
-
-WBlockchain = {|syncAddTransaction, syncAddFundsOrTokensToTransaction, syncGetTransaction, syncGetTransactionID, 
-transactionDoesNotExists, syncGetAllTransactionsForParty, syncGetPartyID, getAllTransactionsForParty|}
-
-
-updateBlockchainAddTransaction(value, map) = mapFromList(mapToList(map) ^ <value>) --Converte o mapa para lista adiciona o valor e após isso para mapa novamente
-
-updateBlockchainUpdateTransaction(scriptHash, transaction, map) = mapUpdate(map, scriptHash, transaction)
-
-getValueFromMap(map, key) = mapLookup(map, key) 
 
 --------------------------------Utils--------------------------------
 --SafeMath ???? Adicionar o valor a transção ???
 add((value, lastModified, status, transactionType, threshold, timeoutHours, buyer, seller, tokenAddress, moderator, released, noOfReleases), valueToAdd) = (value, lastModified, status, transactionType, threshold, timeoutHours, buyer, seller, tokenAddress, moderator, released, noOfReleases)
 
 getBytes({bytes}) = bytes
---------------------------------Asserts & Paralelism--------------------------------
-
-EscrowAndBlockchain = Escrow [ WEscrow || WBlockchain ] InitBlockchain
-
-assert InitBlockchain :[deadlock free]
-assert InitBlockchain :[deterministic]
-
-assert Escrow :[deadlock free]
-assert Escrow :[deterministic]
-
-
-assert EscrowAndBlockchain :[deadlock free]
-assert EscrowAndBlockchain :[deterministic]
-
---------------------------------Apêndice--------------------------------
-
--- expection1 -> "Buyer and seller are same"
--- expection2 -> "Value passed is 0"
--- expection3 -> "Threshold must be greater than 0"
--- expection4 -> "Threshold must not be greater than 3"
--- expection5 -> "Either threshold should be 1 or valid moderator address should be passed"
--- expection6 -> "Calculated script hash does not match passed script hash."
--- expection7 -> "Transaction does not exist"
--- expection8 -> Transaction is not in FUNDED state
--- expection9 -> Transaction type does not match
--- expection10 -> "The initiator of the transaction is not buyer"
--- exception11 -> "Value must be greater than zero."

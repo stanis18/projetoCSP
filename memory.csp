@@ -1,0 +1,49 @@
+include "escrow.csp"
+
+--------------------------------Windows--------------------------------
+
+WEscrow = {|addTransaction, addTokenTransaction, checkBeneficiary, checkVote, 
+addFundsToTransaction, addTokensToTransaction, getAllTransactionsForParty, 
+execute, getTransactionHash, calculateRedeemScriptHash, syncAddFundsOrTokensToTransaction,
+createTransaction, syncAddTransaction, returnError, fundedEvent, returnCheckBeneficiary,
+syncGetTransaction, syncGetTransactionID, transactionDoesNotExists, createNewITokenContract,
+fundAddedEvent, returnCheckVote, syncGetAllTransactionsForParty, syncGetPartyID|}
+
+
+WBlockchain = {|syncAddTransaction, syncAddFundsOrTokensToTransaction, syncGetTransaction, syncGetTransactionID, 
+transactionDoesNotExists, syncGetAllTransactionsForParty, syncGetPartyID, getAllTransactionsForParty|}
+
+
+--------------------------------Blockchain--------------------------------
+
+InitBlockchain = Blockchain((| |), (| |))
+
+Blockchain(transactions, partyVsTransaction) =  syncAddTransaction?scriptHash?transaction -> Blockchain(transactions, partyVsTransaction)  --??? Atualizar o map com a nova transacao(esta havendo um deadlock)???            
+                                            []  syncGetTransactionID?scriptHash -> if mapMember(transactions, scriptHash) then syncGetTransaction!getValueFromMap(transactions, scriptHash) -> syncAddFundsOrTokensToTransaction?scriptHash?transaction -> Blockchain(updateBlockchainUpdateTransaction(scriptHash, transaction, transactions), partyVsTransaction)   --Retornar a transacao
+                                                                                   else transactionDoesNotExists -> Blockchain(transactions, partyVsTransaction)  
+                                            []  syncGetTransactionID?scriptHash -> if mapMember(transactions, scriptHash) then syncGetTransaction!getValueFromMap(transactions, scriptHash) -> Blockchain(transactions, partyVsTransaction)   --Retornar a transacao
+                                                                                   else transactionDoesNotExists -> Blockchain(transactions, partyVsTransaction) 
+                                            [] syncGetPartyID?address -> if mapMember(partyVsTransaction, address) then syncGetAllTransactionsForParty!mapLookup(partyVsTransaction, address) -> Blockchain(transactions, partyVsTransaction)  
+                                                                         else partyVsTransactionDoesNotExists -> Blockchain(transactions, partyVsTransaction) 
+
+
+updateBlockchainAddTransaction(value, map) = mapFromList(mapToList(map) ^ <value>) --Converte o mapa para lista adiciona o valor e após isso para mapa novamente
+
+updateBlockchainUpdateTransaction(scriptHash, transaction, map) = mapUpdate(map, scriptHash, transaction)
+
+getValueFromMap(map, key) = mapLookup(map, key) 
+
+
+--------------------------------Asserts & Paralelism--------------------------------
+
+EscrowAndBlockchain = Escrow [ WEscrow || WBlockchain ] InitBlockchain
+
+assert InitBlockchain :[deadlock free]
+assert InitBlockchain :[deterministic]
+
+assert Escrow :[deadlock free]
+assert Escrow :[deterministic]
+
+
+assert EscrowAndBlockchain :[deadlock free]
+assert EscrowAndBlockchain :[deterministic]
