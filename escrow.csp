@@ -77,8 +77,8 @@ Escrow =   addTransaction?parameters -> addTransaction_(parameters)
         [] addTokenTransaction?parameters -> addTransaction_(parameters)
         [] checkBeneficiary?parameters -> checkBeneficiary_(parameters)
         [] checkVote?parameters -> checkVote_(parameters)
-      --  [] addFundsToTransaction?parameters -> addFundsToTransaction_(parameters)
-      --  [] addTokensToTransaction?parameters -> addTokensToTransaction_(parameters) 
+        [] addFundsToTransaction?parameters -> addFundsToTransaction_(parameters)
+        [] addTokensToTransaction?parameters -> addTokensToTransaction_(parameters) 
         [] getAllTransactionsForParty?address -> getAllTransactionsForParty_(address)
         [] execute?parameters -> execute_(parameters)
         [] getTransactionHash?parameters!getBytes(getTransactionHash_(parameters)) -> Escrow
@@ -96,20 +96,6 @@ addTransaction_(parameters) =  require((getBuyer(parameters) !=  getSeller(param
                                require((getScriptHash(parameters) == getBytes(calculateRedeemScriptHash_((getBuyer(parameters), getSeller(parameters), getModerator(parameters), getThreshold(parameters), getTimeoutHours(parameters), getUniqueId(parameters), getTokenAddress(parameters))))), expection6);
                                createTransaction?transaction -> syncAddTransaction!getScriptHash(parameters)!transaction -> fundedEvent!getValueTransaction(transaction)!getScriptHash(parameters)!getMsgSenderTransaction(transaction) -> Escrow
                                
-
--- addTransaction_(parameters) =  if getBuyer(parameters) !=  getSeller(parameters) then 
---                                   if getValue(parameters) > 0 then 
---                                     if getThreshold(parameters) > 0 then 
---                                         if getThreshold(parameters) <= 3 then 
---                                             if (getThreshold(parameters)  == 1 or getModerator(parameters) != zeroAddress ) then 
---                                                 if(getScriptHash(parameters) == getBytes(calculateRedeemScriptHash_((getBuyer(parameters), getSeller(parameters), getModerator(parameters), getThreshold(parameters), getTimeoutHours(parameters), getUniqueId(parameters), getTokenAddress(parameters))))) then 
---                                                     createTransaction?transaction -> syncAddTransaction!getScriptHash(parameters)!transaction -> fundedEvent!getValueTransaction(transaction)!getScriptHash(parameters)!getMsgSenderTransaction(transaction) -> Escrow
---                                                 else throwError(expection6)
---                                             else throwError(expection5) 
---                                         else throwError(expection4)
---                                     else throwError(expection3)
---                                   else  throwError(expection2)
---                                else throwError(expection1)
 
  require(condition, err) = if condition then SKIP
                            else throwError(err)
@@ -152,30 +138,22 @@ calculateRedeemScriptHash_((buyer, seller, moderator, threshold, timeoutHours, u
 channel createNewITokenContract, teste
 channel fundAddedEvent : {0..2}.bytes32.address
 channel fundedEvent : numbersType.bytes32.address
-addTokensToTransaction_((scriptHash, value, msgSender)) = syncGetTransactionID!scriptHash -> ( syncGetTransaction?transaction -> (if getStateTransaction(transaction) == FUNDED then 
-                                                                                                                                if getTypeTransaction(transaction) == TOKEN then 
-                                                                                                                                    if getBuyerTransaction(transaction) == msgSender then 
-                                                                                                                                        if value > 0 then
-                                                                                                                                             syncAddFundsOrTokensToTransaction!scriptHash!transaction -> fundAddedEvent!value!scriptHash!msgSender -> Escrow
-                                                                                                                                        else throwError(expection11)
-                                                                                                                                    else throwError(expection10)
-                                                                                                                                else throwError(expection9)
-                                                                                                                            else throwError(expection8))
-                                                                                             [] transactionDoesNotExists -> throwError(expection7) )
+addTokensToTransaction_((scriptHash, value, msgSender)) = syncGetTransactionID!scriptHash ->  (syncGetTransaction?transaction -> (require((getStateTransaction(transaction) == FUNDED), expection8);
+                                                                                                                                  require((getTypeTransaction(transaction) == TOKEN), expection9); 
+                                                                                                                                  require((getBuyerTransaction(transaction) == msgSender), expection10);
+                                                                                                                                  require((value > 0), expection11);                              
+                                                                                                                                  syncAddFundsOrTokensToTransaction!scriptHash!transaction -> fundAddedEvent!value!scriptHash!msgSender -> Escrow)                                                                                                                                     
+                                                                                             [] transactionDoesNotExists ->  Escrow ) -- Tratar exception 7
 
 
                                                                                                                             
 
-addFundsToTransaction_((scriptHash, value, msgSender)) = syncGetTransactionID!scriptHash -> ( syncGetTransaction?transaction -> (if getStateTransaction(transaction) == FUNDED then 
-                                                                                                                                if getTypeTransaction(transaction) == ETHER then 
-                                                                                                                                    if getBuyerTransaction(transaction) == msgSender then 
-                                                                                                                                        if value > 0 then
-                                                                                                                                            createNewITokenContract -> syncAddFundsOrTokensToTransaction!scriptHash!transaction -> fundAddedEvent!value!scriptHash!msgSender -> Escrow
-                                                                                                                                        else throwError(expection11)
-                                                                                                                                    else throwError(expection10)
-                                                                                                                                else throwError(expection9)
-                                                                                                                            else throwError(expection8))
-                                                                                             [] transactionDoesNotExists -> throwError(expection7) )
+addFundsToTransaction_((scriptHash, value, msgSender)) = syncGetTransactionID!scriptHash -> ( syncGetTransaction?transaction -> (require((getStateTransaction(transaction) == FUNDED), expection8);
+                                                                                                                                 require((getTypeTransaction(transaction) == ETHER), expection9); 
+                                                                                                                                 require((getBuyerTransaction(transaction) == msgSender), expection10);
+                                                                                                                                 require((value > 0), expection11); 
+                                                                                                                                 createNewITokenContract -> syncAddFundsOrTokensToTransaction!scriptHash!transaction -> fundAddedEvent!value!scriptHash!msgSender -> Escrow)
+                                                                                             [] transactionDoesNotExists -> Escrow ) -- Tratar exception 7
 
 
 channel returnCheckBeneficiary, returnCheckVote : Bool
