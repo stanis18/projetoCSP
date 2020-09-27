@@ -4,7 +4,6 @@ type string; //declarando um tipo string
 type bytes20;
 type bytes32;
 const alloc : bytes32;
-type Field G; 
 
 type address; 
 const unique zeroAddress: address;
@@ -17,8 +16,6 @@ const unique RELEASED: Status;
 type TransactionType;
 const unique ETHER: TransactionType;
 const unique TOKEN: TransactionType;
-
-type Transaction = <G>[Ref, Field G] G;
 
 var Transaction.value : [Ref] int;
 var Transaction.lastModified : [Ref] int;
@@ -155,7 +152,6 @@ Transaction.tokenAddress, Transaction.moderator, Transaction.released, Transacti
 Transaction.isOwner, Transaction.voted, Transaction.beneficiaries;{
    
    var this : Ref;
-   var newTransaction : Transaction;
 
    var buyerIndex : int;
    var sellerIndex : int;
@@ -259,13 +255,7 @@ modifies Transaction.value, Event.scriptHash, Event.msg.senderEvent,  Event.msg.
     Event.msg.valueEvent [thisEvent] := msg.value;
 }
 
-
-
-
 procedure execute( calldataSigV : [int] int, calldataSigR : [int] bytes32, calldataSigS : [int] bytes32,
 scriptHash : bytes32,  calldataDestinations : [int] address, calldataAmounts : [int] int) {
 
 }
-
-
-

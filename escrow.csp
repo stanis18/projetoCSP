@@ -7,6 +7,7 @@ datatype bytes32 = b32.{uint256}
 datatype bytes20 = b20.{uint256}
 datatype list = arrayUint256 | arrayAddress
 
+
 datatype numbersType = uint | uint8 | uint32 | uint256 
 
 datatype expection = expection1  | expection2  | expection3  | expection4  | expection5  |
@@ -76,8 +77,8 @@ Escrow =   addTransaction?parameters -> addTransaction_(parameters)
         [] addTokenTransaction?parameters -> addTransaction_(parameters)
         [] checkBeneficiary?parameters -> checkBeneficiary_(parameters)
         [] checkVote?parameters -> checkVote_(parameters)
-        [] addFundsToTransaction?parameters -> addFundsToTransaction_(parameters)
-        [] addTokensToTransaction?parameters -> addTokensToTransaction_(parameters) 
+      --  [] addFundsToTransaction?parameters -> addFundsToTransaction_(parameters)
+      --  [] addTokensToTransaction?parameters -> addTokensToTransaction_(parameters) 
         [] getAllTransactionsForParty?address -> getAllTransactionsForParty_(address)
         [] execute?parameters -> execute_(parameters)
         [] getTransactionHash?parameters!getBytes(getTransactionHash_(parameters)) -> Escrow
@@ -86,21 +87,36 @@ Escrow =   addTransaction?parameters -> addTransaction_(parameters)
 
 --Método adicionar Transações--
 
-addTransaction_(parameters) =  if getBuyer(parameters) !=  getSeller(parameters) then 
-                                  if getValue(parameters) > 0 then 
-                                    if getThreshold(parameters) > 0 then 
-                                        if getThreshold(parameters) <= 3 then 
-                                            if (getThreshold(parameters)  == 1 or getModerator(parameters) != zeroAddress ) then 
-                                                if(getScriptHash(parameters) == getBytes(calculateRedeemScriptHash_((getBuyer(parameters), getSeller(parameters), getModerator(parameters), getThreshold(parameters), getTimeoutHours(parameters), getUniqueId(parameters), getTokenAddress(parameters))))) then 
-                                                    createTransaction?transaction -> syncAddTransaction!getScriptHash(parameters)!transaction -> fundedEvent!getValueTransaction(transaction)!getScriptHash(parameters)!getMsgSenderTransaction(transaction) -> Escrow
-                                                else throwError(expection6)
-                                            else throwError(expection5) 
-                                        else throwError(expection4)
-                                    else throwError(expection3)
-                                  else  throwError(expection2)
-                               else throwError(expection1)
 
-throwError(err) = returnError!err -> Escrow
+addTransaction_(parameters) =  require((getBuyer(parameters) !=  getSeller(parameters)), expection1);
+                               require((getValue(parameters) > 0), expection2);
+                               require((getThreshold(parameters) > 0), expection3);
+                               require((getThreshold(parameters) <= 3 ), expection4);
+                               require((getThreshold(parameters)  == 1 or getModerator(parameters) != zeroAddress), expection5);
+                               require((getScriptHash(parameters) == getBytes(calculateRedeemScriptHash_((getBuyer(parameters), getSeller(parameters), getModerator(parameters), getThreshold(parameters), getTimeoutHours(parameters), getUniqueId(parameters), getTokenAddress(parameters))))), expection6);
+                               createTransaction?transaction -> syncAddTransaction!getScriptHash(parameters)!transaction -> fundedEvent!getValueTransaction(transaction)!getScriptHash(parameters)!getMsgSenderTransaction(transaction) -> Escrow
+                               
+
+-- addTransaction_(parameters) =  if getBuyer(parameters) !=  getSeller(parameters) then 
+--                                   if getValue(parameters) > 0 then 
+--                                     if getThreshold(parameters) > 0 then 
+--                                         if getThreshold(parameters) <= 3 then 
+--                                             if (getThreshold(parameters)  == 1 or getModerator(parameters) != zeroAddress ) then 
+--                                                 if(getScriptHash(parameters) == getBytes(calculateRedeemScriptHash_((getBuyer(parameters), getSeller(parameters), getModerator(parameters), getThreshold(parameters), getTimeoutHours(parameters), getUniqueId(parameters), getTokenAddress(parameters))))) then 
+--                                                     createTransaction?transaction -> syncAddTransaction!getScriptHash(parameters)!transaction -> fundedEvent!getValueTransaction(transaction)!getScriptHash(parameters)!getMsgSenderTransaction(transaction) -> Escrow
+--                                                 else throwError(expection6)
+--                                             else throwError(expection5) 
+--                                         else throwError(expection4)
+--                                     else throwError(expection3)
+--                                   else  throwError(expection2)
+--                                else throwError(expection1)
+
+ require(condition, err) = if condition then SKIP
+                           else throwError(err)
+
+
+
+throwError(err) = returnError!err -> SKIP
 
 -- channel returnModifiernonZeroAddress : Bool
 -- modifiernonZeroAddress(address) =  if getValueTransaction(transaction) == uint256 then returnModifiernonZeroAddress!true
