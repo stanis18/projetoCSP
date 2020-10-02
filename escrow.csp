@@ -57,8 +57,14 @@ channel getTransactionHash : ParametersGetTransactionHash.bytes32
 channel checkVote, checkBeneficiary : ParametersCheckVoteORCheckBeneficiary
 channel transactionDoesNotExists, partyVsTransactionDoesNotExists
 channel returnCheckBeneficiary, returnCheckVote : Bool
-channel getValueInt, getThresholdInt : {0..5}
+channel getValueInt, getThresholdInt, getReleasedInt : {0..5}
 channel returnError : expection
+
+channel createNewITokenContract
+channel fundAddedEvent : numbersType.bytes32.address
+channel fundedEvent : numbersType.bytes32.address
+channel executedEvent : bytes32.{<address>}.{<{uint256}>}
+
 
 Escrow =   addTransaction?parameters -> addTransaction_(parameters)
         [] addTokenTransaction?parameters -> addTransaction_(parameters)
@@ -114,9 +120,7 @@ calculateRedeemScriptHash_((buyer, seller, moderator, threshold, timeoutHours, u
 
 
 --Metodo addTokenTransaction
-channel createNewITokenContract
-channel fundAddedEvent : numbersType.bytes32.address
-channel fundedEvent : numbersType.bytes32.address
+
 addTokensToTransaction_((scriptHash, value, msgSender)) = syncGetTransactionID!scriptHash ->  (syncGetTransaction?transaction -> (require((getStateTransaction(transaction) == FUNDED), expection8);
                                                                                                                                   require((getTypeTransaction(transaction) == TOKEN), expection9); 
                                                                                                                                   require((getBuyerTransaction(transaction) == msgSender), expection10);
@@ -150,21 +154,31 @@ getAllTransactionsForParty_(parameter) = syncGetPartyID!parameter -> getAllTrans
                                                                    []  partyVsTransactionDoesNotExists -> Escrow
 
 
-execute_((calldataSigV, calldataSigR, calldataSigS, scriptHash, calldataDestinations, calldataAmounts)) =   syncGetTransactionID!scriptHash -> ( syncGetTransaction?transaction -> Escrow
+
+
+
+
+execute_((calldataSigV, calldataSigR, calldataSigS, scriptHash, calldataDestinations, calldataAmounts)) =   syncGetTransactionID!scriptHash -> ( syncGetTransaction?transaction -> ( getValueInt?value -> require((value != 0), expection7); 
+                                                                                                                                                                                     getReleasedInt?released -> getValueInt?value -> require((value - released < 0), expection12);                  
+                                                                                                                                                                                     require ((length(calldataDestinations) > 0), expection13);
+                                                                                                                                                                                     require ((length(calldataDestinations) == length(calldataAmounts)), expection14);
+                                                                                                                                                                                     verifySignatures_((calldataSigV, calldataSigR, calldataSigS, scriptHash, calldataDestinations, calldataAmounts));
+                                                                                                                                                                                       executedEvent!scriptHash!calldataDestinations!calldataAmounts -> Escrow) 
                                                                                                 
                                                                                                                                                 [] transactionDoesNotExists -> Escrow)
 
-channel verifySignatures, isTimeLockExpired 
+channel verifySignatures 
 
-isTimeLockExpired_((timeoutHours,lastModified)) = Bool
+channel isTimeLockExpired, getVoteScriptHash : Bool
 
 
-verifySignatures_(parameters) = Bool
-
+verifySignatures_((calldataSigV, calldataSigR, calldataSigS, scriptHash, calldataDestinations, calldataAmounts)) = isTimeLockExpired?expired -> getThresholdInt?threshold -> ( require ( (length(calldataSigV) < threshold and expired != false), expection15);
+                                                                                                                                                                               getVoteScriptHash?vote -> require( (vote != false), expection16);
+                                                                                                                                                                               SKIP )
+                                                                                                                                                                                                        
 
 --Metodo para conseguir o hash da transacao
 getTransactionHash_((scriptHash, destinations, amounts)) = bytes32
-
 
 --------------------------------Utils--------------------------------
 add((value, lastModified, status, transactionType, threshold, timeoutHours, buyer, seller, tokenAddress, moderator, released, noOfReleases), valueToAdd) = (value, lastModified, status, transactionType, threshold, timeoutHours, buyer, seller, tokenAddress, moderator, released, noOfReleases)
