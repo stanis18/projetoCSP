@@ -2,8 +2,8 @@ include "escrow.csp"
 
 --------------------------------Windows--------------------------------
 
-WEscrow = {|addTransaction, addTokenTransaction, checkBeneficiary, checkVote, 
-addFundsToTransaction, addTokensToTransaction, getAllTransactionsForParty, 
+WEscrow = {|addTransaction, addTokenTransaction, checkBeneficiary, checkVote, getValueInt,
+addFundsToTransaction, addTokensToTransaction, getAllTransactionsForParty, getThresholdInt,
 execute, getTransactionHash, calculateRedeemScriptHash, syncAddFundsOrTokensToTransaction,
 createTransaction, syncAddTransaction, returnError, fundedEvent, returnCheckBeneficiary,
 syncGetTransaction, syncGetTransactionID, transactionDoesNotExists, createNewITokenContract,

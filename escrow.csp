@@ -1,6 +1,5 @@
 include "types.csp"
 
-
 Transaction = {(value, lastModified, status, transactionType, threshold, timeoutHours, 
 buyer, seller, tokenAddress, moderator, released, noOfReleases, isOwner, voted, beneficiaries, msgSender) | 
 value <- {uint256}, lastModified <- {uint256}, status <- Status, msgSender <- address,
@@ -27,8 +26,7 @@ timeoutHours <- {uint32}, uniqueId <- bytes20, tokenAddress <- address}
 
 ParametersCheckVoteORCheckBeneficiary = {(scriptHash, party) | scriptHash <- bytes32, party <- address }
 
-                                                                --??? Value é do tipo uint ???
-ParametersAddTokensToTransaction = {(scriptHash, value, msgSender) | value <- {0..2}, scriptHash <- bytes32, msgSender <- address } 
+ParametersAddTokensToTransaction = {(scriptHash, value, msgSender) | value <- {uint256}, scriptHash <- bytes32, msgSender <- address } 
 
 ParametersGetTransactionHash = {(scriptHash, destinations, amounts) | scriptHash <- bytes32, destinations <- { arrayAddress }, amounts <- { arrayUint256 }} 
 
@@ -57,7 +55,9 @@ channel calculateRedeemScriptHash : ParametersCalculateRedeemScriptHash.bytes32
 channel addTokensToTransaction, addFundsToTransaction : ParametersAddTokensToTransaction
 channel getTransactionHash : ParametersGetTransactionHash.bytes32
 channel checkVote, checkBeneficiary : ParametersCheckVoteORCheckBeneficiary
-
+channel transactionDoesNotExists, partyVsTransactionDoesNotExists
+channel returnCheckBeneficiary, returnCheckVote : Bool
+channel getValueInt, getThresholdInt : {0..5}
 channel returnError : expection
 
 Escrow =   addTransaction?parameters -> addTransaction_(parameters)
@@ -73,26 +73,23 @@ Escrow =   addTransaction?parameters -> addTransaction_(parameters)
 
 
 --Método adicionar Transações--
-
-
 addTransaction_(parameters) =  require((getBuyer(parameters) !=  getSeller(parameters)), expection1);
-                               require((getValue(parameters) > 0), expection2);
-                               require((getThreshold(parameters) > 0), expection3);
-                               require((getThreshold(parameters) <= 3 ), expection4);
-                               require((getThreshold(parameters)  == 1 or getModerator(parameters) != zeroAddress), expection5);
+                               getValueInt?value -> require((value > 0), expection2);
+                               getThresholdInt?threshold -> require((threshold > 0), expection3);
+                               getThresholdInt?threshold -> require((threshold <= 3 ), expection4);
+                               getThresholdInt?threshold -> require((threshold  == 1 or getModerator(parameters) != zeroAddress), expection5);
                                require((getScriptHash(parameters) == getBytes(calculateRedeemScriptHash_((getBuyer(parameters), getSeller(parameters), getModerator(parameters), getThreshold(parameters), getTimeoutHours(parameters), getUniqueId(parameters), getTokenAddress(parameters))))), expection6);
                                createTransaction?transaction -> syncAddTransaction!getScriptHash(parameters)!transaction -> fundedEvent!getValueTransaction(transaction)!getScriptHash(parameters)!getMsgSenderTransaction(transaction) -> Escrow
                                
 
- require(condition, err) = if condition then SKIP
+require(condition, err) = if condition then SKIP
                            else throwError(err)
 
 throwError(err) = returnError!err -> SKIP
 
-
 -- para retornar valores dos parametros addTransaction_
-getValue((buyer, seller, moderator, threshold, timeoutHours, scriptHash, value, uniqueId, transactionType, tokenAddress)) = 3 -- ???Como representar os numeros sem travar???
-getThreshold((buyer, seller, moderator, threshold, timeoutHours, scriptHash, value, uniqueId, transactionType, tokenAddress)) = 2
+getValue((buyer, seller, moderator, threshold, timeoutHours, scriptHash, value, uniqueId, transactionType, tokenAddress)) = value
+getThreshold((buyer, seller, moderator, threshold, timeoutHours, scriptHash, value, uniqueId, transactionType, tokenAddress)) = threshold
 getBuyer((buyer, seller, moderator, threshold, timeoutHours, scriptHash, value, uniqueId, transactionType, tokenAddress)) = buyer
 getSeller((buyer, seller, moderator, threshold, timeoutHours, scriptHash, value, uniqueId, transactionType, tokenAddress)) = seller
 getTransactionType((buyer, seller, moderator, threshold, timeoutHours, scriptHash, value, uniqueId, transactionType, tokenAddress)) = transactionType
@@ -117,13 +114,13 @@ calculateRedeemScriptHash_((buyer, seller, moderator, threshold, timeoutHours, u
 
 
 --Metodo addTokenTransaction
-channel createNewITokenContract, teste
-channel fundAddedEvent : {0..2}.bytes32.address
+channel createNewITokenContract
+channel fundAddedEvent : numbersType.bytes32.address
 channel fundedEvent : numbersType.bytes32.address
 addTokensToTransaction_((scriptHash, value, msgSender)) = syncGetTransactionID!scriptHash ->  (syncGetTransaction?transaction -> (require((getStateTransaction(transaction) == FUNDED), expection8);
                                                                                                                                   require((getTypeTransaction(transaction) == TOKEN), expection9); 
                                                                                                                                   require((getBuyerTransaction(transaction) == msgSender), expection10);
-                                                                                                                                  require((value > 0), expection11);                              
+                                                                                                                                  getValueInt?valueInt -> require((valueInt > 0), expection11);                              
                                                                                                                                   syncAddFundsOrTokensToTransaction!scriptHash!transaction -> fundAddedEvent!value!scriptHash!msgSender -> Escrow)                                                                                                                                     
                                                                                              [] transactionDoesNotExists ->  Escrow ) -- Tratar exception 7
 
@@ -133,12 +130,12 @@ addTokensToTransaction_((scriptHash, value, msgSender)) = syncGetTransactionID!s
 addFundsToTransaction_((scriptHash, value, msgSender)) = syncGetTransactionID!scriptHash -> ( syncGetTransaction?transaction -> (require((getStateTransaction(transaction) == FUNDED), expection8);
                                                                                                                                  require((getTypeTransaction(transaction) == ETHER), expection9); 
                                                                                                                                  require((getBuyerTransaction(transaction) == msgSender), expection10);
-                                                                                                                                 require((value > 0), expection11); 
+                                                                                                                                 getValueInt?valueInt -> require((valueInt > 0), expection11); 
                                                                                                                                  createNewITokenContract -> syncAddFundsOrTokensToTransaction!scriptHash!transaction -> fundAddedEvent!value!scriptHash!msgSender -> Escrow)
                                                                                              [] transactionDoesNotExists -> Escrow ) -- Tratar exception 7
 
 
-channel returnCheckBeneficiary, returnCheckVote : Bool
+
 
 checkBeneficiary_((scriptHash, beneficiary)) = syncGetTransactionID!scriptHash -> ( syncGetTransaction?transaction -> (if mapMember(getBeneficiariesTransaction(transaction), beneficiary) then returnCheckBeneficiary!mapLookup(getBeneficiariesTransaction(transaction), beneficiary) -> Escrow
                                                                                                                       else returnCheckBeneficiary!false -> Escrow)
@@ -151,21 +148,25 @@ checkVote_((scriptHash, party)) = syncGetTransactionID!scriptHash -> ( syncGetTr
 
 getAllTransactionsForParty_(parameter) = syncGetPartyID!parameter -> getAllTransactionsForParty?listPartyTransaction -> Escrow
                                                                    []  partyVsTransactionDoesNotExists -> Escrow
-execute_(parameters) = Escrow
+
+
+execute_((calldataSigV, calldataSigR, calldataSigS, scriptHash, calldataDestinations, calldataAmounts)) =   syncGetTransactionID!scriptHash -> ( syncGetTransaction?transaction -> Escrow
+                                                                                                
+                                                                                                                                                [] transactionDoesNotExists -> Escrow)
+
+channel verifySignatures, isTimeLockExpired 
+
+isTimeLockExpired_((timeoutHours,lastModified)) = Bool
+
+
+verifySignatures_(parameters) = Bool
 
 
 --Metodo para conseguir o hash da transacao
 getTransactionHash_((scriptHash, destinations, amounts)) = bytes32
 
 
-
---------------------------------Blockchain Channels--------------------------------
-channel transactionDoesNotExists, partyVsTransactionDoesNotExists
-
-
-
 --------------------------------Utils--------------------------------
---SafeMath ???? Adicionar o valor a transção ???
 add((value, lastModified, status, transactionType, threshold, timeoutHours, buyer, seller, tokenAddress, moderator, released, noOfReleases), valueToAdd) = (value, lastModified, status, transactionType, threshold, timeoutHours, buyer, seller, tokenAddress, moderator, released, noOfReleases)
 
 getBytes({bytes}) = bytes
