@@ -45,37 +45,37 @@ channel syncGetTransaction : Transaction
 channel syncGetAllTransactionsForParty, returnTransactionsForParty : {<bytes32>}
 
 --------------------------------Contract--------------------------------
-channel getAllTransactionsForParty : address
-channel execute : ParametersExecute
+channel getAllTransactionsForParty : RawTransaction.address
+channel execute : RawTransaction.ParametersExecute
 
 channel createTransaction : Transaction
-channel addTransaction : ParametersAddTransaction
-channel addTokenTransaction : ParametersAddTransactionToken
-channel calculateRedeemScriptHash : ParametersCalculateRedeemScriptHash.bytes32
-channel addTokensToTransaction, addFundsToTransaction : ParametersAddTokensToTransaction
-channel getTransactionHash : ParametersGetTransactionHash.bytes32
-channel checkVote, checkBeneficiary : ParametersCheckVoteORCheckBeneficiary
+channel addTransaction : RawTransaction.ParametersAddTransaction
+channel addTokenTransaction : RawTransaction.ParametersAddTransactionToken
+channel calculateRedeemScriptHash : RawTransaction.ParametersCalculateRedeemScriptHash.bytes32
+channel addTokensToTransaction, addFundsToTransaction : RawTransaction.ParametersAddTokensToTransaction
+channel getTransactionHash : RawTransaction.ParametersGetTransactionHash.bytes32
+channel checkVote, checkBeneficiary : RawTransaction.ParametersCheckVoteORCheckBeneficiary
 channel transactionDoesNotExists, partyVsTransactionDoesNotExists
 channel returnCheckBeneficiary, returnCheckVote : Bool
 channel getValueInt, getThresholdInt, getReleasedInt : {0..5}
 channel returnError : expection
-
+channel isTimeLockExpired, getVoteScriptHash : Bool
 channel createNewITokenContract
 channel fundAddedEvent : numbersType.bytes32.address
 channel fundedEvent : numbersType.bytes32.address
 channel executedEvent : bytes32.{<address>}.{<{uint256}>}
 
 
-Escrow =   addTransaction?parameters -> addTransaction_(parameters)
-        [] addTokenTransaction?parameters -> addTransaction_(parameters)
-        [] checkBeneficiary?parameters -> checkBeneficiary_(parameters)
-        [] checkVote?parameters -> checkVote_(parameters)
-        [] addFundsToTransaction?parameters -> addFundsToTransaction_(parameters)
-        [] addTokensToTransaction?parameters -> addTokensToTransaction_(parameters) 
-        [] getAllTransactionsForParty?address -> getAllTransactionsForParty_(address)
-        [] execute?parameters -> execute_(parameters)
-        [] getTransactionHash?parameters!getBytes(getTransactionHash_(parameters)) -> Escrow
-        [] calculateRedeemScriptHash?parameters!getBytes(calculateRedeemScriptHash_(parameters)) -> Escrow
+Escrow = syncSubRawTransaction?transactionFromPool -> ( addTransaction!transactionFromPool?parameters -> addTransaction_(parameters)
+                                                        [] addTokenTransaction!transactionFromPool?parameters -> addTransaction_(parameters)
+                                                        [] checkBeneficiary!transactionFromPool?parameters -> checkBeneficiary_(parameters)
+                                                        [] checkVote!transactionFromPool?parameters -> checkVote_(parameters)
+                                                        [] addFundsToTransaction!transactionFromPool?parameters -> addFundsToTransaction_(parameters)
+                                                        [] addTokensToTransaction!transactionFromPool?parameters -> addTokensToTransaction_(parameters) 
+                                                        [] getAllTransactionsForParty!transactionFromPool?address -> getAllTransactionsForParty_(address)
+                                                        [] execute!transactionFromPool?parameters -> execute_(parameters)
+                                                        [] getTransactionHash!transactionFromPool?parameters!getBytes(getTransactionHash_(parameters)) -> Escrow
+                                                        [] calculateRedeemScriptHash!transactionFromPool?parameters!getBytes(calculateRedeemScriptHash_(parameters)) -> Escrow )
 
 
 --Método adicionar Transações--
@@ -167,9 +167,8 @@ execute_((calldataSigV, calldataSigR, calldataSigS, scriptHash, calldataDestinat
                                                                                                 
                                                                                                                                                 [] transactionDoesNotExists -> Escrow)
 
-channel verifySignatures 
 
-channel isTimeLockExpired, getVoteScriptHash : Bool
+
 
 
 verifySignatures_((calldataSigV, calldataSigR, calldataSigS, scriptHash, calldataDestinations, calldataAmounts)) = isTimeLockExpired?expired -> getThresholdInt?threshold -> ( require ( (length(calldataSigV) < threshold and expired != false), expection15);

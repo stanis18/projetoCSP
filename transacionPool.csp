@@ -1,0 +1,37 @@
+RawTransaction = {(from, nonce, gasPrice, gasLimit, to, value, data) | 
+from <- address, nonce <- {uint256}, gasPrice <- {0..3}, gasLimit <- {uint256},
+to <- address, value <- {uint256}, data <- bytes32 } 
+
+channel syncAddRawTransaction, syncSubRawTransaction : RawTransaction
+channel emptyPool
+
+InitTransactionPool = TransactionPool(<>)
+
+TransactionPool(transactionsList) = syncAddRawTransaction?transaction -> ( if length(transactionsList) < 3 then TransactionPool(updateTransactionPoolList(transaction, transactionsList)) 
+                                                                           else TransactionPool(transactionsList) )
+                                  [] ( if isEmptyList(transactionsList) then syncSubRawTransaction!getFirst(transactionsList) -> TransactionPool(subList(transactionsList)) 
+                                       else emptyPool -> TransactionPool(transactionsList)  )
+                                     
+
+getGasPrice((from, nonce, gasPrice, gasLimit, to, value, data)) = gasPrice
+
+updateTransactionPoolList(trans, list)= qsort(list ^ <trans>)
+
+getFirst(list) = head(list)
+              
+isEmptyList(list) = if list != <> then true
+                    else false
+
+subList(list)=  if list != <> then tail(list)
+                else <>
+
+qsort(<>) = <>
+qsort(<x>^xs) =
+let
+    p(<>,ls,es,gs) = (ls,es,gs)
+    p(<y>^ys,ls,es,gs) = if getGasPrice(y) < getGasPrice(x) then p(ys,<y>^ls,es,gs)
+    else if getGasPrice(y) == getGasPrice(x) then p(ys,ls,<y>^es,gs)
+    else p(ys,ls,es,<y>^gs)
+    (lsx,esx,gsx) = p(xs,<>,<>,<>)
+within
+qsort(lsx)^<x>^esx^qsort(gsx)

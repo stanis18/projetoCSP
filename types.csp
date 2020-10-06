@@ -1,7 +1,7 @@
 datatype Status = FUNDED | RELEASED
 datatype TransactionType = ETHER | TOKEN
 
-datatype address = zeroAddress | validAddress
+datatype address = zeroAddress | validAddress 
 datatype bytes32 = b32.{uint256}
 datatype bytes20 = b20.{uint256}
 datatype list = arrayUint256 | arrayAddress
@@ -11,9 +11,9 @@ datatype numbersType = uint | uint8 | uint32 | uint256
 
 datatype expection = expection1  | expection2  | expection3  | expection4  | expection5  |
                      expection6  | expection7  | expection8  | expection9  | expection10 |
-                     expection11 | expection12 | expection13 | expection14 | expection15
+                     expection11 | expection12 | expection13 | expection14 | expection15 |
+                     expection16
 
-inteiro = {0..5}
 --------------------------------Apêndice--------------------------------
 
 -- expection1 -> "Buyer and seller are same"
@@ -23,7 +23,12 @@ inteiro = {0..5}
 -- expection5 -> "Either threshold should be 1 or valid moderator address should be passed"
 -- expection6 -> "Calculated script hash does not match passed script hash."
 -- expection7 -> "Transaction does not exist"
--- expection8 -> Transaction is not in FUNDED state
--- expection9 -> Transaction type does not match
+-- expection8 -> "Transaction is not in FUNDED state"
+-- expection9 -> "Transaction type does not match"
 -- expection10 -> "The initiator of the transaction is not buyer"
 -- exception11 -> "Value must be greater than zero."
+-- expection12 -> "All funds has been released"
+-- expection13 -> "Number of destinations must be greater than 0"
+-- exepction14 -> "Number of destinations must match number of values sent"
+-- exepction15 -> "Min number of sigs not present and timelock not expired"
+-- exepction16 -> "Min number of sigs not present and seller did not sign"
